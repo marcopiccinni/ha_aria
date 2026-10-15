@@ -12,7 +12,7 @@ struttura HTML parsata, invarianti e decisioni di design.
 | Qualità aria | `https://www.3bmeteo.com/aria/<canonical>` |
 | Ricerca località | `https://www.3bmeteo.com/search/search_localita/<query>` |
 
-- `<canonical>` è lo slug del comune (es. `modena`, `novi+di+modena`), ottemuto
+- `<canonical>` è lo slug del comune (es. `roma`, `roma+centro+storico`), ottenuto
   dalla ricerca come campo `canonical`.
 - La ricerca restituisce JSON: `nome_loc`, `canonical`, `regione`, `stato`,
   `prov`, `id_localita`, `lat`, `lon`.

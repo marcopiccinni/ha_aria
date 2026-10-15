@@ -30,7 +30,7 @@ Per ogni comune configurato:
 | `sensor.<localita>_indice` | Qualità complessiva: categoria peggiore tra gli inquinanti selezionati |
 
 Gli id reali dipendono dal nome che assegni al dispositivo (es.
-`Qualità aria Modena`). Gli inquinanti non selezionati nelle opzioni non
+`Qualità aria Roma`). Gli inquinanti non selezionati nelle opzioni non
 vengono creati.
 
 ### Attributi delle entità inquinante
@@ -60,7 +60,7 @@ configurazione e riavvia.
 
 ## Configurazione
 
-1. Cerca il **nome del comune** (es. `Modena`).
+1. Cerca il **nome del comune** (es. `Roma`).
 2. Scegli il comune esatto tra i risultati.
 3. (Facoltativo) **Configura** la voce per scegliere gli inquinanti e
    l'intervallo di aggiornamento (default 1 ora).
@@ -72,12 +72,12 @@ L'integrazione include e registra automaticamente la card `ha-aria-card`
 
 ```yaml
 type: custom:ha-aria-card
-title: Qualità aria — Modena
-entity: sensor.qualita_aria_modena_indice
+title: Qualità aria — Roma
+entity: sensor.qualita_aria_roma_indice
 entities:
-  - sensor.qualita_aria_modena_pm10
-  - sensor.qualita_aria_modena_pm2_5
-  - sensor.qualita_aria_modena_o3
+  - sensor.qualita_aria_roma_pm10
+  - sensor.qualita_aria_roma_pm2_5
+  - sensor.qualita_aria_roma_o3
 ```
 
 `entity` è l'entità mostrata nel gauge; `entities` sono inquinanti aggiuntivi
@@ -92,7 +92,7 @@ Se preferisci non usare la card custom, un esempio con strumenti nativi:
 type: vertical-stack
 cards:
   - type: gauge
-    entity: sensor.qualita_aria_modena_indice
+    entity: sensor.qualita_aria_roma_indice
     name: Indice
     min: 1
     max: 5
@@ -106,12 +106,12 @@ cards:
   - type: entities
     title: Inquinanti (stato attuale)
     entities:
-      - sensor.qualita_aria_modena_pm10
-      - sensor.qualita_aria_modena_pm2_5
-      - sensor.qualita_aria_modena_co
-      - sensor.qualita_aria_modena_so2
-      - sensor.qualita_aria_modena_o3
-      - sensor.qualita_aria_modena_no2
+      - sensor.qualita_aria_roma_pm10
+      - sensor.qualita_aria_roma_pm2_5
+      - sensor.qualita_aria_roma_co
+      - sensor.qualita_aria_roma_so2
+      - sensor.qualita_aria_roma_o3
+      - sensor.qualita_aria_roma_no2
 ```
 
 ## Fasce
