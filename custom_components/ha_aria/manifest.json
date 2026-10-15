@@ -1,0 +1,11 @@
+{
+  "domain": "ha_aria",
+  "name": "3BMeteo Qualità dell'aria",
+  "codeowners": ["@marcopiccinni"],
+  "config_flow": true,
+  "documentation": "https://github.com/marcopiccinni/ha_aria",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/marcopiccinni/ha_aria/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

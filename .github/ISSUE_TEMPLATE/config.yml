@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Disclaimer
+    url: https://github.com/marcopiccinni/ha_aria#-disclaimer
+    about: Progetto non ufficiale, non affiliato a 3BMeteo. I dati sono letti dalle pagine pubbliche del sito; nessuna garanzia di disponibilità o continuità del servizio.

@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "3BMeteo air quality",
+        "description": "Search for a town. {disclaimer}\n\nSource: {site}",
+        "data": {
+          "location": "Town"
+        }
+      },
+      "select": {
+        "title": "Choose the town",
+        "description": "Select the exact town from the search results.",
+        "data": {
+          "canonical": "Town"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot reach 3BMeteo. Check your connection and try again.",
+      "no_results": "No town found. Try a different name."
+    },
+    "abort": {
+      "already_configured": "This town is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Air quality options",
+        "description": "Choose which pollutants to expose and how often to refresh.",
+        "data": {
+          "pollutants": "Pollutants",
+          "scan_interval": "Refresh interval (seconds)"
+        }
+      }
+    }
+  }
+}

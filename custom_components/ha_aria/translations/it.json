@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "3BMeteo qualità dell'aria",
+        "description": "Cerca un comune. {disclaimer}\n\nFonte: {site}",
+        "data": {
+          "location": "Comune"
+        }
+      },
+      "select": {
+        "title": "Scegli il comune",
+        "description": "Seleziona il comune esatto tra i risultati della ricerca.",
+        "data": {
+          "canonical": "Comune"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile raggiungere 3BMeteo. Controlla la connessione e riprova.",
+      "no_results": "Nessun comune trovato. Prova con un altro nome."
+    },
+    "abort": {
+      "already_configured": "Questo comune è già configurato."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni qualità dell'aria",
+        "description": "Scegli quali inquinanti esporre e ogni quanto aggiornare.",
+        "data": {
+          "pollutants": "Inquinanti",
+          "scan_interval": "Intervallo di aggiornamento (secondi)"
+        }
+      }
+    }
+  }
+}
