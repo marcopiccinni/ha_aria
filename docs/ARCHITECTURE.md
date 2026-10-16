@@ -50,6 +50,22 @@ Il parser è in `client.py::parse_air` e usa solo `re` + `html` (stdlib).
   ricarica la voce.
 - Nessuna dipendenza extra in `manifest.json` (parsing con stdlib).
 
+## Indice pesato (Riepilogo)
+
+Le entità `<canonical>_riepilogo` espongono un indice 0-100 che confronta
+inquinanti diversi sulla stessa scala (0 = pulito, 100 = limite di riferimento):
+
+1. Normalizzazione per inquinante: `n = 100 · c / L` con `L` in
+   `const.POLLUTANT_LIMITS` (limiti UE, µg/m³).
+2. Media generalizzata pesata: `I = ( Σ w·nᵖ / Σ w )^(1/p)` con pesi
+   `const.POLLUTANT_WEIGHTS` ed esponente `const.INDEX_POWER = 2` (i valori
+   peggiori pesano di più).
+3. Fascia da `const.INDEX_BANDS` (Ottima/Buona/Accettabile/Scadente/Pessima).
+
+I singoli inquinanti restano invece sulla scala 0-100 di 3BMeteo
+(`indice_pct`), usata anche per posizionare tacche Min/Media/Max e il pallino
+del valore corrente nella card.
+
 ## Card
 
 `www/ha-aria-card.js` è servita dall'integrazione e caricata con

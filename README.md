@@ -46,11 +46,54 @@ vengono creati.
 
 ### Attributi dell'entità riepilogo
 
-- `categoria`, `indice`, `colore` — riepilogo complessivo (peggiore degli inquinanti)
-- `inquinanti_piu_alti` — fino a 3 inquinanti oltre il livello "Ottima", ordinati
-  dal peggiore (nome, valore, categoria, min/media/max)
-- `riepilogo` — tutti gli inquinanti selezionati, ordinati dal peggiore
+- `categoria`, `indice`, `colore` — fascia dell'indice pesato (vedi sotto)
+- `indice_pct` — l'indice complessivo **0-100** (100 = limite di riferimento,
+  può superare 100 quando un limite viene superato)
+- `oltre_limite` — `true` quando l'indice raggiunge/supera 100
+- `inquinanti_piu_alti` — fino a 3 inquinanti con normalizzato ≥ 20, ordinati
+  dal peggiore (`nome`, `valore`, `normalizzato`, `limite`, `peso`, `categoria`)
+- `riepilogo` — tutti gli inquinanti selezionati, ordinati per valore normalizzato
+- `limiti`, `pesi`, `esponente` — i parametri usati per il calcolo
+- `previsioni` — un elemento per giorno con l'indice pesato (`indice_pct`) e
+  `min`/`media`/`max` dell'indice, più `inquinanti` del giorno
 - `conteggio_per_categoria`, `inquinanti_non_ottimi`, `totale_inquinanti`, `giorni`
+
+### Indice dell'aria (Riepilogo)
+
+Le entità `sensor.<località>_riepilogo` espongono un unico indice **0-100**
+pensato per confrontare inquinanti diversi sulla stessa scala:
+
+1. **Normalizzazione** di ogni inquinante rispetto al limite di riferimento
+   (0 = aria pulita, 100 = limite, oltre 100 = fuori limite):
+
+   ```
+   nᵢ = 100 · cᵢ / Lᵢ
+   ```
+
+2. **Media generalizzata pesata** degli inquinanti selezionati, con esponente
+   `p = 2` così i valori peggiori pesano di più di una media semplice:
+
+   ```
+   I = ( Σ wᵢ · nᵢᵖ / Σ wᵢ )^(1/p)
+   ```
+
+Limiti `Lᵢ` (µg/m³) basati sui valori limite UE (Direttiva 2008/50/CE) e pesi
+`wᵢ` per pericolosità:
+
+| Inquinante | Limite `Lᵢ` | Peso `wᵢ` |
+| --- | --- | --- |
+| PM2.5 | 25 | 5 |
+| PM10 | 50 | 4 |
+| O3 | 120 | 3 |
+| NO2 | 200 | 3 |
+| SO2 | 125 | 2 |
+| CO | 10000 | 1 |
+
+Le fasce dell'indice riusano i nomi e i colori del sito: `< 20` Ottima,
+`20-40` Buona, `40-60` Accettabile, `60-80` Scadente, `≥ 80` Pessima.
+
+> Nota: la scala dell'indice è più severa delle categorie mostrate da 3BMeteo
+> sui singoli inquinanti (che usano la scala normalizzata 0-100 del sito).
 
 ## Installazione
 
@@ -136,9 +179,11 @@ show_gauge_media: true
 show_forecast: false
 ```
 
-Se l'entità principale è il riepilogo (`sensor.<localita>_riepilogo`), la card
-mostra anche la sezione **"Inquinanti più alti"** con gli inquinanti oltre il
-livello "Ottima".
+Se l'entità principale è il riepilogo (`sensor.<localita>_riepilogo`) il gauge
+mostra l'**indice pesato 0-100** (vedi [Indice dell'aria](#indice-dellaria-riepilogo))
+e, sotto, la sezione **"Inquinanti più alti"** con nome, valore e percentuale
+rispetto al limite. Selezionando un giorno nella striscia delle previsioni, sia
+l'indice sia l'elenco si aggiornano a quel giorno.
 
 ### Alternativa con le card built-in
 

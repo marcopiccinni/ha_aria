@@ -17,7 +17,7 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_ORDER = ["Ottima", "Buona", "Accettabile", "Scadente", "Pessima"];
 
-const CARD_VERSION = "0.1.4";
+const CARD_VERSION = "0.1.5";
 
 class HaAriaCard extends HTMLElement {
   constructor() {
@@ -108,15 +108,30 @@ class HaAriaCard extends HTMLElement {
       : 0;
     const day = forecast[selected] || null;
 
-    let value = stateObj.state;
-    let category = attrs.categoria || attrs.categoria_oggi || "";
-    let index = attrs.indice || CATEGORY_ORDER.indexOf(category) + 1 || 0;
+    let value;
+    let pct;
+    let category;
+    let unitForValue = unit;
     if (isSummary) {
-      value = attrs.indice || value;
+      // The summary carries its own 0-100 weighted index.
+      if (selected > 0 && day) {
+        value = day.media;
+        pct = day.media_indice_pct != null ? day.media_indice_pct : day.media;
+        category = day.categoria || "";
+      } else {
+        value = attrs.indice_pct;
+        pct = attrs.indice_pct;
+        category = attrs.categoria || "";
+      }
+      unitForValue = "";
     } else if (selected > 0 && day) {
       value = day.max;
+      pct = day.max_indice_pct;
       category = day.categoria || "";
-      index = CATEGORY_ORDER.indexOf(category) + 1 || 0;
+    } else {
+      value = stateObj.state;
+      pct = attrs.indice_pct;
+      category = attrs.categoria || attrs.categoria_oggi || "";
     }
     const periods = day ? day.periodi || {} : {};
     const ticks = this._ticks(day);
@@ -136,10 +151,15 @@ class HaAriaCard extends HTMLElement {
             <span class="title">${title}</span>
             <span class="updated">${right}</span>
           </div>
-          ${this._gauge(index, value, unit, category, ticks)}
+          ${this._gauge(pct, value, unitForValue, category, ticks)}
           ${
             isSummary
-              ? this._summaryList(attrs.inquinanti_piu_alti || [], unit)
+              ? this._summaryList(
+                  selected > 0 && day
+                    ? day.inquinanti_piu_alti || []
+                    : attrs.inquinanti_piu_alti || [],
+                  unit
+                )
               : ""
           }
           ${
@@ -170,7 +190,7 @@ class HaAriaCard extends HTMLElement {
     return out;
   }
 
-  _gauge(index, value, unit, category, ticks = []) {
+  _gauge(pct, value, unit, category, ticks = []) {
     const step = 180 / CATEGORY_ORDER.length;
     const bands = CATEGORY_ORDER.map((name, i) => {
       const a1 = 180 - i * step;
@@ -178,8 +198,10 @@ class HaAriaCard extends HTMLElement {
       return `<path d="${_arc(100, 100, 78, a1, a2)}" stroke="${CATEGORY_COLORS[name]}" stroke-width="15" fill="none" stroke-linecap="butt"/>`;
     }).join("");
     let marker = "";
-    if (index) {
-      const [mx, my] = _polar(100, 100, 78, 180 - (index - 0.5) * step);
+    const markerPct = Number(pct);
+    if (pct != null && !Number.isNaN(markerPct)) {
+      const clamped = Math.max(0, Math.min(100, markerPct));
+      const [mx, my] = _polar(100, 100, 78, 180 - clamped * 1.8);
       marker = `<circle cx="${mx}" cy="${my}" r="9.5" fill="var(--card-background-color, #fff)" stroke="var(--primary-text-color, #333)" stroke-width="3"/>`;
     }
     const marks = ticks
@@ -217,10 +239,12 @@ class HaAriaCard extends HTMLElement {
     const items = list
       .map((row) => {
         const color = CATEGORY_COLORS[row.categoria] || "#999";
+        const norm =
+          row.normalizzato != null ? `${_fmt(row.normalizzato)}%` : "";
         return `<div class="sum-row">
             <span class="s-name">${row.nome || row.chiave || ""}</span>
             <span class="s-val">${_fmt(row.valore)}${unit}</span>
-            <span class="s-max">${row.max != null ? "Max " + _fmt(row.max) : ""}</span>
+            <span class="s-norm" style="color:${color}">${norm}</span>
             <span class="s-cat" style="color:${color}">${row.categoria || ""}</span>
           </div>`;
       })
@@ -301,7 +325,7 @@ class HaAriaCard extends HTMLElement {
       .sum-row { display: flex; gap: 8px; align-items: baseline; font-size: .85rem; padding: 2px 0; }
       .sum-row .s-name { font-weight: 600; min-width: 64px; }
       .sum-row .s-val { color: var(--secondary-text-color); }
-      .sum-row .s-max { margin-left: auto; font-size: .75rem; color: var(--secondary-text-color); }
+      .sum-row .s-norm { margin-left: auto; font-weight: 600; }
       .sum-row .s-cat { font-weight: 600; }
       .periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
       .period { display: flex; flex-direction: column; align-items: center; gap: 2px; }

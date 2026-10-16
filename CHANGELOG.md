@@ -5,6 +5,31 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.1.5] - 2026-10-16
+
+### Corretto
+
+- Il pallino del valore corrente sul gauge era posizionato al centro della
+  fascia-categoria invece che sulla scala continua 0-100: ora coincide con le
+  tacche Min/Media/Max (se il valore corrente è pari al minimo, il pallino cade
+  sulla barretta blu del minimo).
+
+### Aggiunto
+
+- Il Riepilogo espone un **indice pesato 0-100** (`indice_pct`, `oltre_limite`,
+  `limiti`, `pesi`, `esponente`): ogni inquinante è normalizzato sul proprio
+  limite UE (`100 = limite`, oltre 100 = fuori limite) e combinato con una media
+  generalizzata pesata. Il gauge del Riepilogo mostra questo indice.
+- Previsioni per giorno del Riepilogo con l'indice pesato `min`/`media`/`max` e
+  l'elenco degli inquinanti del giorno; selezionando un giorno la card aggiorna
+  indice ed elenco.
+- Formule, limiti e pesi documentati in README e `docs/ARCHITECTURE.md`.
+
+### Modificato
+
+- La sezione "Inquinanti più alti" usa il valore normalizzato (≥ 20) e mostra la
+  percentuale rispetto al limite.
+
 ## [0.1.4] - 2026-10-16
 
 ### Aggiunto
