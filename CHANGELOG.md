@@ -5,6 +5,25 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.1.6] - 2026-10-16
+
+### Aggiunto
+
+- Nuove opzioni della card: `forecast_days` (quante giornate mostrare nella
+  striscia delle previsioni) e `font_size` (`small`/`normal`/`large`/`xlarge`)
+  per ingrandire o ridurre il testo senza toccare titolo e ultimo aggiornamento.
+
+### Modificato
+
+- L'ultimo aggiornamento è mostrato in un formato compatto (`gg/mm hh:mm`).
+- Il **Riepilogo** ora usa la **stessa scala 0-100 di 3BMeteo** dei singoli
+  inquinanti: l'indice pesato combina direttamente gli indici 0-100 pubblicati
+  dal sito, quindi è coerente con le categorie dei singoli inquinanti (non
+  risulta mai peggiore del peggiore) e non mostra più "Scadente"/"Accettabile"
+  quando è tutto "Ottimo".
+- Rimossi i limiti UE (`limiti`, `oltre_limite`) e la relativa normalizzazione;
+  aggiunto l'attributo `scala` (`"3BMeteo 0-100"`). I pesi e l'esponente restano.
+
 ## [0.1.5] - 2026-10-16
 
 ### Corretto

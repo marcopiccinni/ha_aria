@@ -17,7 +17,14 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_ORDER = ["Ottima", "Buona", "Accettabile", "Scadente", "Pessima"];
 
-const CARD_VERSION = "0.1.5";
+const FONT_SCALES = {
+  small: 0.85,
+  normal: 1,
+  large: 1.15,
+  xlarge: 1.3,
+};
+
+const CARD_VERSION = "0.1.6";
 
 class HaAriaCard extends HTMLElement {
   constructor() {
@@ -40,8 +47,19 @@ class HaAriaCard extends HTMLElement {
     this._config.show_gauge_min = this._config.show_gauge_min !== false;
     this._config.show_gauge_max = this._config.show_gauge_max !== false;
     this._config.show_gauge_media = this._config.show_gauge_media === true;
+    this._config.font_size = this._config.font_size || "normal";
     this._selectedDay = 0;
     if (this._hass) this._render();
+  }
+
+  _scale() {
+    return FONT_SCALES[this._config.font_size] || 1;
+  }
+
+  _limitForecast(forecast) {
+    const n = Number(this._config.forecast_days);
+    if (!this._config.forecast_days || Number.isNaN(n) || n <= 0) return forecast;
+    return forecast.slice(0, n);
   }
 
   _onClick(ev) {
@@ -102,7 +120,7 @@ class HaAriaCard extends HTMLElement {
     const unit = attrs.unit_of_measurement || "";
     const isSummary = !!attrs.inquinanti_piu_alti;
 
-    const forecast = attrs.previsioni || [];
+    const forecast = this._limitForecast(attrs.previsioni || []);
     const selected = forecast.length
       ? Math.min(this._selectedDay, forecast.length - 1)
       : 0;
@@ -146,7 +164,7 @@ class HaAriaCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${HaAriaCard._css()}</style>
       <ha-card>
-        <div class="content">
+        <div class="content" style="font-size:${this._scale()}em">
           <div class="header">
             <span class="title">${title}</span>
             <span class="updated">${right}</span>
@@ -313,34 +331,34 @@ class HaAriaCard extends HTMLElement {
       .updated { font-size: .8rem; color: var(--secondary-text-color); }
       .gauge { position: relative; margin: 0 auto; max-width: 300px; cursor: pointer; }
       .gauge-value { position: absolute; left: 0; right: 0; top: 40%; text-align: center; display: flex; flex-direction: column; }
-      .gauge-value .value { font-size: 2rem; font-weight: 700; color: var(--primary-text-color); line-height: 1; }
-      .gauge-value .unit { font-size: .8rem; color: var(--secondary-text-color); }
-      .gauge-category { text-align: center; font-size: 1rem; font-weight: 700; margin-top: -4px; }
+      .gauge-value .value { font-size: 2em; font-weight: 700; color: var(--primary-text-color); line-height: 1; }
+      .gauge-value .unit { font-size: .8em; color: var(--secondary-text-color); }
+      .gauge-category { text-align: center; font-size: 1em; font-weight: 700; margin-top: -4px; }
       .gauge-category.with-legend { margin-top: 8px; }
       .gauge-legend { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-      .gauge-legend .lg { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; color: var(--secondary-text-color); }
+      .gauge-legend .lg { display: inline-flex; align-items: center; gap: 4px; font-size: .72em; color: var(--secondary-text-color); }
       .gauge-legend .lg i { display: inline-block; width: 3px; height: 11px; border-radius: 2px; }
       .summary { margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 8px; }
-      .sum-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--secondary-text-color); margin-bottom: 4px; }
-      .sum-row { display: flex; gap: 8px; align-items: baseline; font-size: .85rem; padding: 2px 0; }
+      .sum-title { font-size: .72em; text-transform: uppercase; letter-spacing: .04em; color: var(--secondary-text-color); margin-bottom: 4px; }
+      .sum-row { display: flex; gap: 8px; align-items: baseline; font-size: .85em; padding: 2px 0; }
       .sum-row .s-name { font-weight: 600; min-width: 64px; }
       .sum-row .s-val { color: var(--secondary-text-color); }
       .sum-row .s-norm { margin-left: auto; font-weight: 600; }
       .sum-row .s-cat { font-weight: 600; }
       .periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
       .period { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-      .p-name { font-size: .7rem; color: var(--secondary-text-color); }
-      .p-val { font-size: .85rem; font-weight: 600; border-bottom: 3px solid; padding-bottom: 1px; }
-      .p-cat { font-size: .65rem; }
+      .p-name { font-size: .7em; color: var(--secondary-text-color); }
+      .p-val { font-size: .85em; font-weight: 600; border-bottom: 3px solid; padding-bottom: 1px; }
+      .p-cat { font-size: .65em; }
       .forecast { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
       .day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; flex: 1; cursor: pointer; border-radius: 8px; padding: 3px 0; }
       .day.selected { background: var(--secondary-background-color, rgba(128,128,128,.14)); }
-      .d-name { font-size: .7rem; color: var(--secondary-text-color); }
+      .d-name { font-size: .7em; color: var(--secondary-text-color); }
       .d-dot { width: 16px; height: 16px; border-radius: 50%; }
-      .d-max { font-size: .8rem; font-weight: 600; }
-      .d-cat { font-size: .6rem; }
+      .d-max { font-size: .8em; font-weight: 600; }
+      .d-cat { font-size: .6em; }
       .extras { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
-      .extra { display: flex; gap: 6px; align-items: baseline; font-size: .85rem; }
+      .extra { display: flex; gap: 6px; align-items: baseline; font-size: .85em; }
       .e-name { font-weight: 600; }
       .e-val { color: var(--secondary-text-color); }
       .e-cat { font-weight: 600; }
@@ -378,28 +396,15 @@ function _fmt(v) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-const IT_MONTHS = [
-  "gennaio",
-  "febbraio",
-  "marzo",
-  "aprile",
-  "maggio",
-  "giugno",
-  "luglio",
-  "agosto",
-  "settembre",
-  "ottobre",
-  "novembre",
-  "dicembre",
-];
-
 function _fmtUpdated(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${d.getDate()} ${IT_MONTHS[d.getMonth()]} alle ore ${hh}:${mm}`;
+  return `${dd}/${mo} ${hh}:${mm}`;
 }
 
 const EDITOR_TAG = "ha-aria-card-editor";
@@ -410,6 +415,8 @@ const EDITOR_LABELS = {
   entities: "Altri inquinanti (opzionale)",
   show_periods: "Mostra le fasce orarie",
   show_forecast: "Mostra le previsioni",
+  forecast_days: "Giorni di previsione da mostrare",
+  font_size: "Dimensione del testo",
   show_gauge_min: "Gauge: minimo del giorno",
   show_gauge_media: "Gauge: media del giorno",
   show_gauge_max: "Gauge: massimo del giorno",
@@ -436,6 +443,8 @@ class HaAriaCardEditor extends HTMLElement {
       show_gauge_min: true,
       show_gauge_max: true,
       show_gauge_media: false,
+      forecast_days: 5,
+      font_size: "normal",
     };
   }
 
@@ -478,6 +487,24 @@ class HaAriaCardEditor extends HTMLElement {
       },
       { name: "show_periods", selector: { boolean: {} } },
       { name: "show_forecast", selector: { boolean: {} } },
+      {
+        name: "forecast_days",
+        selector: { number: { min: 1, max: 5, mode: "box", step: 1 } },
+      },
+      {
+        name: "font_size",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "small", label: "Piccolo" },
+              { value: "normal", label: "Normale" },
+              { value: "large", label: "Grande" },
+              { value: "xlarge", label: "Molto grande" },
+            ],
+          },
+        },
+      },
       { name: "show_gauge_min", selector: { boolean: {} } },
       { name: "show_gauge_media", selector: { boolean: {} } },
       { name: "show_gauge_max", selector: { boolean: {} } },

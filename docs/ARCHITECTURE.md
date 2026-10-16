@@ -53,18 +53,23 @@ Il parser è in `client.py::parse_air` e usa solo `re` + `html` (stdlib).
 ## Indice pesato (Riepilogo)
 
 Le entità `<canonical>_riepilogo` espongono un indice 0-100 che confronta
-inquinanti diversi sulla stessa scala (0 = pulito, 100 = limite di riferimento):
+inquinanti diversi sulla stessa scala. L'indice usa la **stessa scala 0-100 di
+3BMeteo** dei singoli inquinanti (barra `reliability-indicator`: 0 = Ottima,
+100 = Pessima), così è sempre coerente con le categorie dei singoli inquinanti
+e non può risultare peggiore del peggiore di essi:
 
-1. Normalizzazione per inquinante: `n = 100 · c / L` con `L` in
-   `const.POLLUTANT_LIMITS` (limiti UE, µg/m³).
-2. Media generalizzata pesata: `I = ( Σ w·nᵖ / Σ w )^(1/p)` con pesi
+1. Per ogni inquinante si prende l'indice 0-100 `v` pubblicato dal sito
+   (`period.indicator` per il periodo corrente, `max_indice_pct` del giorno
+   come fallback).
+2. Media generalizzata pesata: `I = ( Σ w·vᵖ / Σ w )^(1/p)` con pesi
    `const.POLLUTANT_WEIGHTS` ed esponente `const.INDEX_POWER = 2` (i valori
    peggiori pesano di più).
-3. Fascia da `const.INDEX_BANDS` (Ottima/Buona/Accettabile/Scadente/Pessima).
+3. Fascia da `const.INDEX_BANDS` (Ottima/Buona/Accettabile/Scadente/Pessima),
+   le stesse bande 20/40/60/80 della barra di 3BMeteo.
 
-I singoli inquinanti restano invece sulla scala 0-100 di 3BMeteo
-(`indice_pct`), usata anche per posizionare tacche Min/Media/Max e il pallino
-del valore corrente nella card.
+I singoli inquinanti restano sulla scala 0-100 di 3BMeteo (`indice_pct`),
+usata anche per posizionare tacche Min/Media/Max e il pallino del valore
+corrente nella card.
 
 ## Card
 

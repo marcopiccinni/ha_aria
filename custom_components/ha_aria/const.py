@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "ha_aria"
-VERSION: Final = "0.1.5"
+VERSION: Final = "0.1.6"
 
 # 3BMeteo public web pages (scraped; see DISCLAIMER).
 BASE_URL: Final = "https://www.3bmeteo.com"
@@ -57,19 +57,6 @@ CATEGORIES: Final[dict[str, dict[str, object]]] = {
 }
 UNIT: Final = "µg/m³"
 
-# Reference concentrations (µg/m³) used to normalise each pollutant to a 0-100
-# index where 100 equals the reference limit (values above 100 exceed it).
-# Based on the EU ambient air quality limit values (Directive 2008/50/EC):
-# PM10 daily, PM2.5 annual, CO 8h, SO2 daily, O3 8h, NO2 hourly.
-POLLUTANT_LIMITS: Final[dict[str, float]] = {
-    "pm10": 50.0,
-    "pm25": 25.0,
-    "co": 10000.0,
-    "so2": 125.0,
-    "o3": 120.0,
-    "no2": 200.0,
-}
-
 # Relative weight (health relevance) of each pollutant in the weighted index.
 POLLUTANT_WEIGHTS: Final[dict[str, int]] = {
     "pm25": 5,
@@ -84,7 +71,8 @@ POLLUTANT_WEIGHTS: Final[dict[str, int]] = {
 # weigh more than a plain weighted average.
 INDEX_POWER: Final = 2
 
-# Upper bounds of the 0-100 index categories (same names/colours as the site).
+# Upper bounds of the 0-100 index categories (same bands, names and colours as
+# the 3BMeteo reliability bar: 0-20 Ottima ... 80-100 Pessima).
 INDEX_BANDS: Final[tuple[tuple[float, str], ...]] = (
     (20.0, "Ottima"),
     (40.0, "Buona"),

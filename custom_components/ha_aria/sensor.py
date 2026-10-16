@@ -24,7 +24,6 @@ from .const import (
     DOMAIN,
     INDEX_BANDS,
     INDEX_POWER,
-    POLLUTANT_LIMITS,
     POLLUTANT_WEIGHTS,
     POLLUTANTS,
     UNIT,
@@ -190,31 +189,22 @@ def _worst_category(coordinator: AirCoordinator) -> str | None:
     return worst
 
 
-def _normalize(key: str, value: float | None) -> float | None:
-    """Normalise a raw concentration to the 0-100 index (100 = reference limit)."""
-    limit = POLLUTANT_LIMITS.get(key)
-    if value is None or not limit:
-        return None
-    return round(100.0 * value / limit, 1)
-
-
 def _weighted_index(values: dict[str, float | None]) -> float | None:
-    """Weighted generalised mean (power ``INDEX_POWER``) of normalised values.
+    """Weighted generalised mean (power ``INDEX_POWER``) of the 0-100 indices.
 
-    ``I = ( Σ w_i · n_i^p / Σ w_i )^(1/p)`` where ``n_i`` is the normalised
-    concentration of pollutant ``i`` and ``w_i`` its health-relevance weight.
-    With ``p > 1`` the highest (worst) values dominate more than a plain
-    weighted average; the result is 0 when the air is clean and 100 at the
-    reference limit (it can exceed 100 when a limit is exceeded).
+    ``values`` holds the 3BMeteo reliability index (0-100, 100 = worst) of every
+    selected pollutant. ``I = ( Σ w_i · v_i^p / Σ w_i )^(1/p)`` with the
+    health-relevance weights ``w_i``: with ``p > 1`` the worst pollutants
+    dominate more than a plain weighted average, while the result stays on the
+    same 0-100 scale (and category bands) used by the single pollutants.
     """
     numerator = 0.0
     denominator = 0.0
     for key, value in values.items():
-        norm = _normalize(key, value)
-        if norm is None:
+        if value is None:
             continue
         weight = POLLUTANT_WEIGHTS.get(key, 1)
-        numerator += weight * (norm**INDEX_POWER)
+        numerator += weight * (float(value) ** INDEX_POWER)
         denominator += weight
     if not denominator:
         return None
@@ -234,11 +224,11 @@ def _index_category(value: float | None) -> str | None:
 class AirSummarySensor(_AirBaseSensor):
     """Summary of the air quality: a weighted 0-100 index and the main sources.
 
-    Exposes a 0-100 index (100 = reference limit, see ``POLLUTANT_LIMITS``)
-    built from the normalised concentrations of the selected pollutants with a
-    weighted generalised mean, plus a ranked list of the highest pollutants, so
-    it can be used as a single "air quality" entity in dashboards and
-    automations.
+    The index lives on the same 0-100 scale and category bands used by the
+    single pollutants (the 3BMeteo reliability bar, 100 = worst): each
+    pollutant's index is combined with a weighted generalised mean, so the
+    summary is never worse than the worst pollutant. A ranked list of the
+    highest pollutants is exposed as well.
     """
 
     _attr_name = "Riepilogo"
@@ -249,7 +239,7 @@ class AirSummarySensor(_AirBaseSensor):
         self._attr_unique_id = f"{coordinator.canonical}_riepilogo"
 
     def _current_values(self) -> dict[str, float | None]:
-        """Current-period value of every selected pollutant."""
+        """Current-period 0-100 reliability index of every selected pollutant."""
         period_name = current_period(dt_util.now())
         values: dict[str, float | None] = {}
         for key in _selected_keys(self.coordinator):
@@ -258,14 +248,17 @@ class AirSummarySensor(_AirBaseSensor):
                 values[key] = None
                 continue
             period = day.periods.get(period_name)
-            values[key] = period.value if period else day.maximum
+            if period is not None:
+                values[key] = period.indicator
+            else:
+                values[key] = _day_stats(day)["max_indice_pct"]
         return values
 
     def _index(self) -> float | None:
         return _weighted_index(self._current_values())
 
     def _rows(self) -> list[dict[str, Any]]:
-        """Every selected pollutant, ranked by normalised value (worst first)."""
+        """Every selected pollutant, ranked by its 0-100 index (worst first)."""
         period_name = current_period(dt_util.now())
         rows: list[dict[str, Any]] = []
         for key in _selected_keys(self.coordinator):
@@ -274,20 +267,20 @@ class AirSummarySensor(_AirBaseSensor):
                 continue
             period = day.periods.get(period_name)
             value = period.value if period else day.maximum
-            norm = _normalize(key, value)
+            stats = _day_stats(day)
+            norm = period.indicator if period else stats["max_indice_pct"]
+            category = period.category if period else day.category
             rows.append(
                 {
                     "chiave": key,
                     "nome": POLLUTANTS[key],
                     "valore": value,
                     "normalizzato": norm,
-                    "limite": POLLUTANT_LIMITS.get(key),
                     "peso": POLLUTANT_WEIGHTS.get(key),
-                    "categoria": _index_category(norm),
-                    "categoria_sito": period.category if period else day.category,
-                    "colore": CATEGORIES.get(_index_category(norm) or "", {}).get(
-                        "color"
-                    ),
+                    "categoria": category or _index_category(norm),
+                    "colore": CATEGORIES.get(
+                        category or _index_category(norm) or "", {}
+                    ).get("color"),
                 }
             )
         rows.sort(key=lambda row: -(row["normalizzato"] or 0))
@@ -299,7 +292,11 @@ class AirSummarySensor(_AirBaseSensor):
         count = 0
         label = None
         for key in keys:
-            days = self.coordinator.data.pollutants.get(key) if self.coordinator.data else None
+            days = (
+                self.coordinator.data.pollutants.get(key)
+                if self.coordinator.data
+                else None
+            )
             if days:
                 count = max(count, len(days))
                 if label is None:
@@ -319,19 +316,19 @@ class AirSummarySensor(_AirBaseSensor):
                 if not days or i >= len(days):
                     continue
                 stats = _day_stats(days[i])
-                lows[key] = stats["min"]
-                means[key] = stats["media"]
-                highs[key] = stats["max"]
-                norm = _normalize(key, stats["max"])
+                lows[key] = stats["min_indice_pct"]
+                means[key] = stats["media_indice_pct"]
+                highs[key] = stats["max_indice_pct"]
+                norm = stats["max_indice_pct"]
                 rows.append(
                     {
                         "chiave": key,
                         "nome": POLLUTANTS[key],
                         "valore": stats["max"],
                         "normalizzato": norm,
-                        "categoria": _index_category(norm),
+                        "categoria": days[i].category,
                         "colore": CATEGORIES.get(
-                            _index_category(norm) or "", {}
+                            days[i].category or "", {}
                         ).get("color"),
                     }
                 )
@@ -379,14 +376,13 @@ class AirSummarySensor(_AirBaseSensor):
             "indice": CATEGORIES.get(category or "", {}).get("index"),
             "colore": CATEGORIES.get(category or "", {}).get("color"),
             "indice_pct": index,
-            "oltre_limite": index is not None and index >= 100,
+            "scala": "3BMeteo 0-100",
             "periodo": current_period(dt_util.now()),
             "riepilogo": rows,
             "inquinanti_piu_alti": top,
             "conteggio_per_categoria": counts,
             "totale_inquinanti": len(rows),
             "inquinanti_non_ottimi": len(top),
-            "limiti": POLLUTANT_LIMITS,
             "pesi": POLLUTANT_WEIGHTS,
             "esponente": INDEX_POWER,
             "previsioni": days,
