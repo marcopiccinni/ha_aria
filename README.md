@@ -68,7 +68,20 @@ configurazione e riavvia.
 ## Card Lovelace
 
 L'integrazione include e registra automaticamente la card `ha-aria-card`
-(non serve installare nulla dal frontend). Esempio:
+(non serve installare nulla dal frontend). La card si configura anche
+dall'**editor visuale** (entità principale, titolo, inquinanti aggiuntivi e
+opzione per le fasce orarie).
+
+Esempio minimo (un inquinante o l'indice):
+
+```yaml
+type: custom:ha-aria-card
+title: Qualità aria — Roma
+entity: sensor.qualita_aria_roma_indice
+```
+
+Facoltativamente puoi aggiungere altri inquinanti, mostrati come riepilogo in
+fondo alla card:
 
 ```yaml
 type: custom:ha-aria-card
@@ -80,9 +93,15 @@ entities:
   - sensor.qualita_aria_roma_o3
 ```
 
-`entity` è l'entità mostrata nel gauge; `entities` sono inquinanti aggiuntivi
-mostrati come riepilogo. Sostituisci gli id con quelli presenti nella tua
-istanza.
+`entity` è l'entità mostrata nel gauge; `entities` (facoltativo) sono inquinanti
+aggiuntivi mostrati come riepilogo. Sostituisci gli id con quelli presenti nella
+tua istanza.
+
+Nella striscia delle previsioni ogni giornata è **cliccabile**: selezionandola, il
+gauge, la categoria e le fasce orarie si aggiornano a quella data (la giornata
+scelta è evidenziata; di default è "oggi"). Cliccando il **gauge** si apre la
+finestra con il grafico storico dell'entità. In alto a destra è mostrata la data e
+l'ora dell'ultimo aggiornamento.
 
 ### Alternativa con le card built-in
 

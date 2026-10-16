@@ -17,7 +17,7 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_ORDER = ["Ottima", "Buona", "Accettabile", "Scadente", "Pessima"];
 
-const CARD_VERSION = "0.1.1";
+const CARD_VERSION = "0.1.3";
 
 class HaAriaCard extends HTMLElement {
   constructor() {
@@ -25,6 +25,8 @@ class HaAriaCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = null;
     this._hass = null;
+    this._selectedDay = 0;
+    this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
   }
 
   setConfig(config) {
@@ -32,7 +34,30 @@ class HaAriaCard extends HTMLElement {
       throw new Error("È richiesto 'entity' (un sensore ha_aria).");
     }
     this._config = { show_periods: true, ...config };
+    this._selectedDay = 0;
     if (this._hass) this._render();
+  }
+
+  _onClick(ev) {
+    const dayEl = ev.target.closest ? ev.target.closest("[data-day]") : null;
+    if (dayEl) {
+      const day = Number(dayEl.dataset.day);
+      if (!Number.isNaN(day)) {
+        this._selectedDay = day;
+        this._render();
+      }
+      return;
+    }
+    const infoEl = ev.target.closest ? ev.target.closest("[data-more-info]") : null;
+    if (infoEl && this._config && this._config.entity) {
+      this.dispatchEvent(
+        new CustomEvent("hass-more-info", {
+          detail: { entityId: this._config.entity },
+          bubbles: true,
+          composed: true,
+        })
+      );
+    }
   }
 
   set hass(hass) {
@@ -51,6 +76,10 @@ class HaAriaCard extends HTMLElement {
     return { entity: entity || "sensor.qualita_aria_esempio_pm10" };
   }
 
+  static getConfigElement() {
+    return document.createElement("ha-aria-card-editor");
+  }
+
   _state(entityId) {
     return this._hass && this._hass.states[entityId];
   }
@@ -63,14 +92,28 @@ class HaAriaCard extends HTMLElement {
       return;
     }
     const attrs = stateObj.attributes;
-    const title = this._config.title || stateObj.attributes.friendly_name || stateObj.entity_id;
-    const category = attrs.categoria || attrs.categoria_oggi || "";
-    const index = attrs.indice || CATEGORY_ORDER.indexOf(category) + 1 || 0;
-    const value = stateObj.state;
+    const title = this._config.title || attrs.friendly_name || stateObj.entity_id;
     const unit = attrs.unit_of_measurement || "";
 
     const forecast = attrs.previsioni || [];
-    const periods = forecast.length ? forecast[0].periodi || {} : {};
+    const selected = forecast.length
+      ? Math.min(this._selectedDay, forecast.length - 1)
+      : 0;
+    const day = forecast[selected] || null;
+
+    let value = stateObj.state;
+    let category = attrs.categoria || attrs.categoria_oggi || "";
+    let index = attrs.indice || CATEGORY_ORDER.indexOf(category) + 1 || 0;
+    if (selected > 0 && day) {
+      value = day.max;
+      category = day.categoria || "";
+      index = CATEGORY_ORDER.indexOf(category) + 1 || 0;
+    }
+    const periods = day ? day.periodi || {} : {};
+
+    const updated = _fmtUpdated(stateObj.last_updated);
+    const right = updated ? `Agg. ${updated}` : attrs.localita || "";
+
     const extras = (this._config.entities || [])
       .map((id) => this._state(id))
       .filter(Boolean);
@@ -81,7 +124,7 @@ class HaAriaCard extends HTMLElement {
         <div class="content">
           <div class="header">
             <span class="title">${title}</span>
-            <span class="updated">${attrs.localita ? attrs.localita : ""}</span>
+            <span class="updated">${right}</span>
           </div>
           ${this._gauge(index, value, unit, category)}
           ${
@@ -89,24 +132,26 @@ class HaAriaCard extends HTMLElement {
               ? this._periods(periods)
               : ""
           }
-          ${this._forecast(forecast)}
+          ${this._forecast(forecast, selected)}
           ${extras.length ? this._extras(extras) : ""}
         </div>
       </ha-card>`;
   }
 
   _gauge(index, value, unit, category) {
+    const step = 180 / CATEGORY_ORDER.length;
     const bands = CATEGORY_ORDER.map((name, i) => {
-      const a1 = 180 - i * 36;
-      const a2 = 180 - (i + 1) * 36;
-      return `<path d="${_arc(100, 100, 78, a1, a2)}" stroke="${CATEGORY_COLORS[name]}" stroke-width="14" fill="none" stroke-linecap="butt"/>`;
+      const a1 = 180 - i * step;
+      const a2 = 180 - (i + 1) * step;
+      return `<path d="${_arc(100, 100, 78, a1, a2)}" stroke="${CATEGORY_COLORS[name]}" stroke-width="15" fill="none" stroke-linecap="butt"/>`;
     }).join("");
-    const marker = index
-      ? `<line x1="100" y1="100" x2="${_polar(100, 100, 66, 180 - (index - 0.5) * 36)[0]}" y2="${_polar(100, 100, 66, 180 - (index - 0.5) * 36)[1]}" stroke="var(--primary-text-color, #333)" stroke-width="4" stroke-linecap="round"/>
-         <circle cx="100" cy="100" r="7" fill="var(--primary-text-color, #333)"/>`
-      : "";
+    let marker = "";
+    if (index) {
+      const [mx, my] = _polar(100, 100, 78, 180 - (index - 0.5) * step);
+      marker = `<circle cx="${mx}" cy="${my}" r="9.5" fill="var(--card-background-color, #fff)" stroke="var(--primary-text-color, #333)" stroke-width="3"/>`;
+    }
     return `
-      <div class="gauge">
+      <div class="gauge" data-more-info="1" title="Mostra lo storico">
         <svg viewBox="0 0 200 118" width="100%">
           ${bands}
           ${marker}
@@ -114,9 +159,9 @@ class HaAriaCard extends HTMLElement {
         <div class="gauge-value">
           <span class="value">${_fmt(value)}</span>
           <span class="unit">${unit}</span>
-          <span class="category" style="color:${CATEGORY_COLORS[category] || "inherit"}">${category || "—"}</span>
         </div>
-      </div>`;
+      </div>
+      <div class="gauge-category" style="color:${CATEGORY_COLORS[category] || "inherit"}">${category || "—"}</div>`;
   }
 
   _periods(periods) {
@@ -136,12 +181,13 @@ class HaAriaCard extends HTMLElement {
     return `<div class="periods">${items}</div>`;
   }
 
-  _forecast(forecast) {
+  _forecast(forecast, selected = 0) {
     if (!forecast.length) return "";
     const items = forecast
-      .map((d) => {
+      .map((d, i) => {
         const color = CATEGORY_COLORS[d.categoria] || "#999";
-        return `<div class="day">
+        const sel = i === selected ? " selected" : "";
+        return `<div class="day${sel}" data-day="${i}" title="${d.data || d.giorno || ""}">
             <span class="d-name">${d.giorno || ""}</span>
             <span class="d-dot" style="background:${color}"></span>
             <span class="d-max">${_fmt(d.max)}</span>
@@ -177,18 +223,19 @@ class HaAriaCard extends HTMLElement {
       .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
       .title { font-size: 1.1rem; font-weight: 600; color: var(--primary-text-color); }
       .updated { font-size: .8rem; color: var(--secondary-text-color); }
-      .gauge { position: relative; margin: 0 auto; max-width: 320px; }
-      .gauge-value { position: absolute; left: 0; right: 0; top: 52%; text-align: center; display: flex; flex-direction: column; }
-      .gauge-value .value { font-size: 1.9rem; font-weight: 700; color: var(--primary-text-color); line-height: 1; }
-      .gauge-value .unit { font-size: .75rem; color: var(--secondary-text-color); }
-      .gauge-value .category { font-size: .95rem; font-weight: 600; margin-top: 2px; }
+      .gauge { position: relative; margin: 0 auto; max-width: 300px; cursor: pointer; }
+      .gauge-value { position: absolute; left: 0; right: 0; top: 40%; text-align: center; display: flex; flex-direction: column; }
+      .gauge-value .value { font-size: 2rem; font-weight: 700; color: var(--primary-text-color); line-height: 1; }
+      .gauge-value .unit { font-size: .8rem; color: var(--secondary-text-color); }
+      .gauge-category { text-align: center; font-size: 1rem; font-weight: 700; margin-top: -4px; }
       .periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
       .period { display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .p-name { font-size: .7rem; color: var(--secondary-text-color); }
       .p-val { font-size: .85rem; font-weight: 600; border-bottom: 3px solid; padding-bottom: 1px; }
       .p-cat { font-size: .65rem; }
       .forecast { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
-      .day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; flex: 1; }
+      .day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; flex: 1; cursor: pointer; border-radius: 8px; padding: 3px 0; }
+      .day.selected { background: var(--secondary-background-color, rgba(128,128,128,.14)); }
       .d-name { font-size: .7rem; color: var(--secondary-text-color); }
       .d-dot { width: 16px; height: 16px; border-radius: 50%; }
       .d-max { font-size: .8rem; font-weight: 600; }
@@ -212,7 +259,7 @@ function _arc(cx, cy, r, a1, a2) {
   const [x1, y1] = _polar(cx, cy, r, a1);
   const [x2, y2] = _polar(cx, cy, r, a2);
   const large = Math.abs(a2 - a1) > 180 ? 1 : 0;
-  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}`;
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
 }
 
 function _fmt(v) {
@@ -221,15 +268,110 @@ function _fmt(v) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+const IT_MONTHS = [
+  "gennaio",
+  "febbraio",
+  "marzo",
+  "aprile",
+  "maggio",
+  "giugno",
+  "luglio",
+  "agosto",
+  "settembre",
+  "ottobre",
+  "novembre",
+  "dicembre",
+];
+
+function _fmtUpdated(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getDate()} ${IT_MONTHS[d.getMonth()]} alle ore ${hh}:${mm}`;
+}
+
+const EDITOR_TAG = "ha-aria-card-editor";
+
+const EDITOR_LABELS = {
+  entity: "Entità principale",
+  title: "Titolo (opzionale)",
+  entities: "Altri inquinanti (opzionale)",
+  show_periods: "Mostra le fasce orarie",
+};
+
+class HaAriaCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config = {};
+    this._hass = null;
+    this._form = null;
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _render() {
+    if (!this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        this._config = ev.detail.value;
+        this.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: { config: this._config },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      });
+      this.shadowRoot.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = [
+      {
+        name: "entity",
+        required: true,
+        selector: { entity: { domain: "sensor", integration: "ha_aria" } },
+      },
+      { name: "title", selector: { text: {} } },
+      {
+        name: "entities",
+        selector: {
+          entity: { domain: "sensor", integration: "ha_aria", multiple: true },
+        },
+      },
+      { name: "show_periods", selector: { boolean: {} } },
+    ];
+    this._form.computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
+  }
+}
+
 const CARD_TAG = "ha-aria-card";
 
 const defineCard = () => {
-  try {
-    if (!customElements.get(CARD_TAG)) {
-      customElements.define(CARD_TAG, HaAriaCard);
+  for (const [tag, cls] of [
+    [CARD_TAG, HaAriaCard],
+    [EDITOR_TAG, HaAriaCardEditor],
+  ]) {
+    try {
+      if (!customElements.get(tag)) {
+        customElements.define(tag, cls);
+      }
+    } catch (_err) {
+      // Already registered in this registry.
     }
-  } catch (_err) {
-    // Already registered in this registry.
   }
 };
 
