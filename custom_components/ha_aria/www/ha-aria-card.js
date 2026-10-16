@@ -17,7 +17,7 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_ORDER = ["Ottima", "Buona", "Accettabile", "Scadente", "Pessima"];
 
-const CARD_VERSION = "0.1.0";
+const CARD_VERSION = "0.1.1";
 
 class HaAriaCard extends HTMLElement {
   constructor() {
@@ -46,7 +46,7 @@ class HaAriaCard extends HTMLElement {
 
   static getStubConfig(hass) {
     const entity = Object.keys(hass.states).find(
-      (e) => e.startsWith("sensor.") && hass.states[e].attributes.indice !== undefined
+      (e) => e.startsWith("sensor.") && hass.states[e].attributes.inquinante !== undefined
     );
     return { entity: entity || "sensor.qualita_aria_esempio_pm10" };
   }
@@ -221,11 +221,37 @@ function _fmt(v) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-customElements.define("ha-aria-card", HaAriaCard);
+const CARD_TAG = "ha-aria-card";
+
+const defineCard = () => {
+  try {
+    if (!customElements.get(CARD_TAG)) {
+      customElements.define(CARD_TAG, HaAriaCard);
+    }
+  } catch (_err) {
+    // Already registered in this registry.
+  }
+};
+
+// Home Assistant replaces window.customElements with a scoped registry while
+// booting, after modules loaded via frontend.add_extra_js_url() may already
+// have run. An element defined on the previous registry is not visible on the
+// new one, which makes the card disappear from the card picker and the
+// dashboard. Register now and again once the swap is observed.
+const initialRegistry = globalThis.customElements;
+defineCard();
+if (globalThis.customElements === initialRegistry) {
+  const swapWatcher = window.setInterval(() => {
+    if (globalThis.customElements === initialRegistry) return;
+    window.clearInterval(swapWatcher);
+    defineCard();
+  }, 200);
+  window.setTimeout(() => window.clearInterval(swapWatcher), 30000);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "ha-aria-card",
+  type: CARD_TAG,
   name: "3BMeteo Qualità dell'aria",
   description: "Gauge a fasce, stato attuale e previsioni della qualità dell'aria",
   version: CARD_VERSION,
