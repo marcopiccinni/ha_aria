@@ -17,7 +17,7 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_ORDER = ["Ottima", "Buona", "Accettabile", "Scadente", "Pessima"];
 
-const CARD_VERSION = "0.1.3";
+const CARD_VERSION = "0.1.4";
 
 class HaAriaCard extends HTMLElement {
   constructor() {
@@ -33,7 +33,13 @@ class HaAriaCard extends HTMLElement {
     if (!config || !config.entity) {
       throw new Error("È richiesto 'entity' (un sensore ha_aria).");
     }
-    this._config = { show_periods: true, ...config };
+    this._config = { ...config };
+    // Defaults: only an explicit `false` hides a block; unset stays visible.
+    this._config.show_periods = this._config.show_periods !== false;
+    this._config.show_forecast = this._config.show_forecast !== false;
+    this._config.show_gauge_min = this._config.show_gauge_min !== false;
+    this._config.show_gauge_max = this._config.show_gauge_max !== false;
+    this._config.show_gauge_media = this._config.show_gauge_media === true;
     this._selectedDay = 0;
     if (this._hass) this._render();
   }
@@ -94,6 +100,7 @@ class HaAriaCard extends HTMLElement {
     const attrs = stateObj.attributes;
     const title = this._config.title || attrs.friendly_name || stateObj.entity_id;
     const unit = attrs.unit_of_measurement || "";
+    const isSummary = !!attrs.inquinanti_piu_alti;
 
     const forecast = attrs.previsioni || [];
     const selected = forecast.length
@@ -104,12 +111,15 @@ class HaAriaCard extends HTMLElement {
     let value = stateObj.state;
     let category = attrs.categoria || attrs.categoria_oggi || "";
     let index = attrs.indice || CATEGORY_ORDER.indexOf(category) + 1 || 0;
-    if (selected > 0 && day) {
+    if (isSummary) {
+      value = attrs.indice || value;
+    } else if (selected > 0 && day) {
       value = day.max;
       category = day.categoria || "";
       index = CATEGORY_ORDER.indexOf(category) + 1 || 0;
     }
     const periods = day ? day.periodi || {} : {};
+    const ticks = this._ticks(day);
 
     const updated = _fmtUpdated(stateObj.last_updated);
     const right = updated ? `Agg. ${updated}` : attrs.localita || "";
@@ -126,19 +136,41 @@ class HaAriaCard extends HTMLElement {
             <span class="title">${title}</span>
             <span class="updated">${right}</span>
           </div>
-          ${this._gauge(index, value, unit, category)}
+          ${this._gauge(index, value, unit, category, ticks)}
+          ${
+            isSummary
+              ? this._summaryList(attrs.inquinanti_piu_alti || [], unit)
+              : ""
+          }
           ${
             this._config.show_periods && Object.keys(periods).length
               ? this._periods(periods)
               : ""
           }
-          ${this._forecast(forecast, selected)}
+          ${
+            this._config.show_forecast
+              ? this._forecast(forecast, selected)
+              : ""
+          }
           ${extras.length ? this._extras(extras) : ""}
         </div>
       </ha-card>`;
   }
 
-  _gauge(index, value, unit, category) {
+  _ticks(day) {
+    const out = [];
+    if (!day) return out;
+    const add = (show, key, label, color) => {
+      if (!show || day[key] == null) return;
+      out.push({ label, value: day[key], pct: day[`${key}_indice_pct`], color });
+    };
+    add(this._config.show_gauge_min, "min", "Min", "#039be5");
+    add(this._config.show_gauge_media, "media", "Media", "#8e8e8e");
+    add(this._config.show_gauge_max, "max", "Max", "#e53935");
+    return out;
+  }
+
+  _gauge(index, value, unit, category, ticks = []) {
     const step = 180 / CATEGORY_ORDER.length;
     const bands = CATEGORY_ORDER.map((name, i) => {
       const a1 = 180 - i * step;
@@ -150,10 +182,23 @@ class HaAriaCard extends HTMLElement {
       const [mx, my] = _polar(100, 100, 78, 180 - (index - 0.5) * step);
       marker = `<circle cx="${mx}" cy="${my}" r="9.5" fill="var(--card-background-color, #fff)" stroke="var(--primary-text-color, #333)" stroke-width="3"/>`;
     }
+    const marks = ticks
+      .filter((t) => t.pct != null)
+      .map((t) => _tick(t.pct, t.color))
+      .join("");
+    const legend = ticks.length
+      ? `<div class="gauge-legend">${ticks
+          .map(
+            (t) =>
+              `<span class="lg"><i style="background:${t.color}"></i>${t.label} ${_fmt(t.value)}</span>`
+          )
+          .join("")}</div>`
+      : "";
     return `
       <div class="gauge" data-more-info="1" title="Mostra lo storico">
         <svg viewBox="0 0 200 118" width="100%">
           ${bands}
+          ${marks}
           ${marker}
         </svg>
         <div class="gauge-value">
@@ -161,7 +206,26 @@ class HaAriaCard extends HTMLElement {
           <span class="unit">${unit}</span>
         </div>
       </div>
-      <div class="gauge-category" style="color:${CATEGORY_COLORS[category] || "inherit"}">${category || "—"}</div>`;
+      ${legend}
+      <div class="gauge-category${
+        legend ? " with-legend" : ""
+      }" style="color:${CATEGORY_COLORS[category] || "inherit"}">${category || "—"}</div>`;
+  }
+
+  _summaryList(list, unit) {
+    if (!list.length) return "";
+    const items = list
+      .map((row) => {
+        const color = CATEGORY_COLORS[row.categoria] || "#999";
+        return `<div class="sum-row">
+            <span class="s-name">${row.nome || row.chiave || ""}</span>
+            <span class="s-val">${_fmt(row.valore)}${unit}</span>
+            <span class="s-max">${row.max != null ? "Max " + _fmt(row.max) : ""}</span>
+            <span class="s-cat" style="color:${color}">${row.categoria || ""}</span>
+          </div>`;
+      })
+      .join("");
+    return `<div class="summary"><div class="sum-title">Inquinanti più alti</div>${items}</div>`;
   }
 
   _periods(periods) {
@@ -228,6 +292,17 @@ class HaAriaCard extends HTMLElement {
       .gauge-value .value { font-size: 2rem; font-weight: 700; color: var(--primary-text-color); line-height: 1; }
       .gauge-value .unit { font-size: .8rem; color: var(--secondary-text-color); }
       .gauge-category { text-align: center; font-size: 1rem; font-weight: 700; margin-top: -4px; }
+      .gauge-category.with-legend { margin-top: 8px; }
+      .gauge-legend { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+      .gauge-legend .lg { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; color: var(--secondary-text-color); }
+      .gauge-legend .lg i { display: inline-block; width: 3px; height: 11px; border-radius: 2px; }
+      .summary { margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 8px; }
+      .sum-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--secondary-text-color); margin-bottom: 4px; }
+      .sum-row { display: flex; gap: 8px; align-items: baseline; font-size: .85rem; padding: 2px 0; }
+      .sum-row .s-name { font-weight: 600; min-width: 64px; }
+      .sum-row .s-val { color: var(--secondary-text-color); }
+      .sum-row .s-max { margin-left: auto; font-size: .75rem; color: var(--secondary-text-color); }
+      .sum-row .s-cat { font-weight: 600; }
       .periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
       .period { display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .p-name { font-size: .7rem; color: var(--secondary-text-color); }
@@ -260,6 +335,17 @@ function _arc(cx, cy, r, a1, a2) {
   const [x2, y2] = _polar(cx, cy, r, a2);
   const large = Math.abs(a2 - a1) > 180 ? 1 : 0;
   return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+}
+
+// Small outer tick marking min/media/max on the reliability scale (0-100%).
+function _tick(pct, color) {
+  const clamped = Math.max(0, Math.min(100, Number(pct)));
+  const deg = 180 - (clamped * 180) / 100;
+  const [x1, y1] = _polar(100, 100, 87, deg);
+  const [x2, y2] = _polar(100, 100, 96, deg);
+  return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(
+    2
+  )}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`;
 }
 
 function _fmt(v) {
@@ -299,6 +385,10 @@ const EDITOR_LABELS = {
   title: "Titolo (opzionale)",
   entities: "Altri inquinanti (opzionale)",
   show_periods: "Mostra le fasce orarie",
+  show_forecast: "Mostra le previsioni",
+  show_gauge_min: "Gauge: minimo del giorno",
+  show_gauge_media: "Gauge: media del giorno",
+  show_gauge_max: "Gauge: massimo del giorno",
 };
 
 class HaAriaCardEditor extends HTMLElement {
@@ -311,8 +401,18 @@ class HaAriaCardEditor extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config || {};
+    this._config = { ...HaAriaCardEditor._defaults(), ...(config || {}) };
     this._render();
+  }
+
+  static _defaults() {
+    return {
+      show_periods: true,
+      show_forecast: true,
+      show_gauge_min: true,
+      show_gauge_max: true,
+      show_gauge_media: false,
+    };
   }
 
   set hass(hass) {
@@ -353,6 +453,10 @@ class HaAriaCardEditor extends HTMLElement {
         },
       },
       { name: "show_periods", selector: { boolean: {} } },
+      { name: "show_forecast", selector: { boolean: {} } },
+      { name: "show_gauge_min", selector: { boolean: {} } },
+      { name: "show_gauge_media", selector: { boolean: {} } },
+      { name: "show_gauge_max", selector: { boolean: {} } },
     ];
     this._form.computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
   }

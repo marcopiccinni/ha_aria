@@ -42,7 +42,8 @@ Il parser è in `client.py::parse_air` e usa solo `re` + `html` (stdlib).
 
 - **Un'inquinante = un sensore.** Lo stato è numerico (µg/m³) per permettere i
   gauge; la categoria è un attributo.
-- `unique_id` entità = `<canonical>_<pollutant>` (o `<canonical>_index`).
+- `unique_id` entità = `<canonical>_<pollutant>` (o `<canonical>_index` /
+  `<canonical>_riepilogo`).
 - Il primo giorno parsato è sempre **oggi** (il sito lo elenca per primo):
   `AirCoordinator.current_day` restituisce `days[0]`.
 - Gli inquinanti non selezionati non vengono creati; cambiare le opzioni
@@ -61,6 +62,6 @@ picker tramite `window.customCards`. Le 5 fasce colore sono replicate nel JS.
 ```
 config flow (search_localita) -> entry(canonical)
    -> AirCoordinator (fetch /aria/<canonical>, parse, cache TTL)
-   -> sensor.py: 1 sensore/inquinante + indice
+   -> sensor.py: 1 sensore/inquinante + indice + riepilogo
    -> card JS legge attributi (categoria, indice, previsioni, periodi)
 ```

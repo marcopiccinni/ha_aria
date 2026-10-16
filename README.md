@@ -28,6 +28,7 @@ Per ogni comune configurato:
 | `sensor.<localita>_o3` | O3 |
 | `sensor.<localita>_no2` | NO2 |
 | `sensor.<localita>_indice` | Qualità complessiva: categoria peggiore tra gli inquinanti selezionati |
+| `sensor.<localita>_riepilogo` | Riepilogo: categoria peggiore + classifica degli inquinanti più alti |
 
 Gli id reali dipendono dal nome che assegni al dispositivo (es.
 `Qualità aria Roma`). Gli inquinanti non selezionati nelle opzioni non
@@ -39,8 +40,17 @@ vengono creati.
 - `indice` — 1…5 (fasce), `indice_pct` — posizione 0-100 nella barra
 - `colore` — colore della fascia
 - `periodo` — Notte / Mattina / Pomeriggio / Sera (fascia corrente)
-- `categoria_oggi`, `max_oggi`, `media_oggi`
-- `previsioni` — elenco dei giorni con max/media e i quattro periodi
+- `categoria_oggi`, `min_oggi`, `media_oggi`, `max_oggi`
+- `previsioni` — elenco dei giorni con min/media/max (e i relativi `*_indice_pct`)
+  e i quattro periodi
+
+### Attributi dell'entità riepilogo
+
+- `categoria`, `indice`, `colore` — riepilogo complessivo (peggiore degli inquinanti)
+- `inquinanti_piu_alti` — fino a 3 inquinanti oltre il livello "Ottima", ordinati
+  dal peggiore (nome, valore, categoria, min/media/max)
+- `riepilogo` — tutti gli inquinanti selezionati, ordinati dal peggiore
+- `conteggio_per_categoria`, `inquinanti_non_ottimi`, `totale_inquinanti`, `giorni`
 
 ## Installazione
 
@@ -69,8 +79,8 @@ configurazione e riavvia.
 
 L'integrazione include e registra automaticamente la card `ha-aria-card`
 (non serve installare nulla dal frontend). La card si configura anche
-dall'**editor visuale** (entità principale, titolo, inquinanti aggiuntivi e
-opzione per le fasce orarie).
+dall'**editor visuale** (entità principale, titolo, inquinanti aggiuntivi,
+fasce orarie, previsioni e tacche Min/Media/Max del gauge).
 
 Esempio minimo (un inquinante o l'indice):
 
@@ -102,6 +112,33 @@ gauge, la categoria e le fasce orarie si aggiornano a quella data (la giornata
 scelta è evidenziata; di default è "oggi"). Cliccando il **gauge** si apre la
 finestra con il grafico storico dell'entità. In alto a destra è mostrata la data e
 l'ora dell'ultimo aggiornamento.
+
+### Opzioni della card
+
+| Opzione | Default | Descrizione |
+| --- | --- | --- |
+| `title` | nome entità | Titolo della card |
+| `entity` | — | Entità mostrata nel gauge |
+| `entities` | — | Inquinanti aggiuntivi mostrati come righe |
+| `show_periods` | `true` | Mostra le fasce orarie (Notte/Mattina/Pomeriggio/Sera) |
+| `show_forecast` | `true` | Mostra la striscia dei giorni |
+| `show_gauge_min` | `true` | Tacca e legenda del **minimo** della giornata |
+| `show_gauge_media` | `false` | Tacca e legenda della **media** della giornata |
+| `show_gauge_max` | `true` | Tacca e legenda del **massimo** della giornata |
+
+Per disattivare un'opzione impostala a `false`, ad esempio:
+
+```yaml
+type: custom:ha-aria-card
+title: Qualità aria — Roma
+entity: sensor.qualita_aria_roma_pm10
+show_gauge_media: true
+show_forecast: false
+```
+
+Se l'entità principale è il riepilogo (`sensor.<localita>_riepilogo`), la card
+mostra anche la sezione **"Inquinanti più alti"** con gli inquinanti oltre il
+livello "Ottima".
 
 ### Alternativa con le card built-in
 

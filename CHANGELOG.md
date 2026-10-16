@@ -5,6 +5,32 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.1.4] - 2026-10-16
+
+### Aggiunto
+
+- Nuovo sensore `sensor.<località>_riepilogo`: lo stato è la categoria peggiore
+  tra gli inquinanti selezionati; gli attributi includono `riepilogo` (tutti gli
+  inquinanti ordinati dal peggiore), `inquinanti_piu_alti` (fino a 3, esclusi
+  gli "Ottimi"), `conteggio_per_categoria`, `inquinanti_non_ottimi`,
+  `totale_inquinanti`, `periodo` e `giorni`.
+- Ogni giorno delle previsioni espone ora `min`, `media`, `max` (e i relativi
+  `min_indice_pct`, `media_indice_pct`, `max_indice_pct`, interpolati dagli
+  indicatori delle quattro fasce); il sensore di ogni inquinante espone
+  `min_oggi` accanto a `media_oggi`/`max_oggi`.
+- Nuove opzioni della card: `show_gauge_min`, `show_gauge_media`,
+  `show_gauge_max` per le tre tacche Min/Media/Max sul bordo esterno del gauge
+  con relativa legenda, e `show_forecast` per nascondere la striscia dei giorni.
+- La card mostra la sezione "Inquinanti più alti" (nome, valore, max e
+  categoria) quando ci sono inquinanti oltre il livello "Ottima".
+
+### Modificato
+
+- Le opzioni booleane della card (`show_periods`, `show_forecast`,
+  `show_gauge_min/media/max`) accettano ora esplicitamente `false`: prima un
+  valore `false` esplicito veniva sovrascritto dal default.
+- `show_gauge_media` è disattivato di default; Min e Max sono attivi.
+
 ## [0.1.3] - 2026-10-16
 
 ### Aggiunto
