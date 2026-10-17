@@ -76,7 +76,11 @@ corrente nella card.
 `www/ha-aria-card.js` è servita dall'integrazione e caricata con
 `frontend.add_extra_js_url` in `__init__.py::_async_register_card` (registrata
 una volta in `async_setup`). Definisce l'elemento `ha-aria-card` e lo espone nel
-picker tramite `window.customCards`. Le 5 fasce colore sono replicate nel JS.
+card picker. Le opzioni sono gestite da `setConfig` (con default robusti) e
+dall'editor `ha-aria-card-editor`; le azioni (`tap_action`, `hold_action`,
+`double_tap_action`) usano i selector `ui_action` e la stessa semantica delle
+card native. Due palette colori (`default`, `colorblind`) e due varianti
+(`gauge`, `bar`) sono definite nel file: la card è vanilla JS, senza build.
 
 ## Flusso
 

@@ -168,6 +168,14 @@ l'ora dell'ultimo aggiornamento.
 | `show_gauge_max` | `true` | Tacca e legenda del **massimo** della giornata |
 | `forecast_days` | tutti | Quante giornate mostrare nella striscia delle previsioni (oggi incluso, 1-5) |
 | `font_size` | `normal` | Dimensione del testo: `small`, `normal`, `large`, `xlarge` (non modifica titolo e ultimo aggiornamento) |
+| `variant` | `gauge` | Visualizzazione principale: `gauge` (arco) o `bar` (barra lineare 0-100) |
+| `color_scheme` | `default` | Palette dei colori: `default` o `colorblind` (sicura per i daltonici) |
+| `show_title` | `true` | Mostra l'intestazione (titolo + ultimo aggiornamento) |
+| `compact` | `false` | Layout più denso (padding e spazi ridotti) |
+| `relative_time` | `true` | Ultimo aggiornamento in forma relativa ("5 min fa"); `false` per `gg/mm hh:mm` |
+| `tap_action` | `more-info` | Azione al tocco (vedi [Azioni](#azioni)) |
+| `hold_action` | `none` | Azione alla pressione prolungata |
+| `double_tap_action` | `none` | Azione al doppio tocco |
 
 Per disattivare un'opzione impostala a `false`, ad esempio:
 
@@ -177,6 +185,29 @@ title: Qualità aria — Roma
 entity: sensor.qualita_aria_roma_pm10
 show_gauge_media: true
 show_forecast: false
+```
+
+### Azioni
+
+Le opzioni `tap_action`, `hold_action` e `double_tap_action` accettano le stesse
+azioni delle card native di Home Assistant: `more-info`, `navigate`, `url`,
+`toggle`, `perform-action` (alias `call-service`) e `none`. Le azioni valgono per
+la card (intestazione, sezioni e spazi); il **gauge** resta sempre collegato al
+grafico storico e i **giorni** della striscia continuano a selezionare la
+giornata. Esempio:
+
+```yaml
+type: custom:ha-aria-card
+entity: sensor.qualita_aria_roma_riepilogo
+tap_action:
+  action: navigate
+  navigation_path: /lovelace/aria
+hold_action:
+  action: url
+  url_path: https://www.3bmeteo.com
+  new_tab: true
+double_tap_action:
+  action: more-info
 ```
 
 Se l'entità principale è il riepilogo (`sensor.<localita>_riepilogo`) il gauge

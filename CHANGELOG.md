@@ -5,6 +5,29 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.1.7] - 2026-10-17
+
+### Aggiunto
+
+- Azioni configurabili sulla card, come le card native di Home Assistant:
+  `tap_action`, `hold_action` e `double_tap_action`. Azioni supportate:
+  `more-info`, `navigate`, `url`, `toggle`, `perform-action` (`call-service`) e
+  `none`. Il gauge resta sempre collegato allo storico e i giorni delle
+  previsioni continuano a selezionare la giornata.
+- Nuove opzioni della card: `variant` (`gauge`/`bar`) per scegliere tra arco e
+  barra lineare, `color_scheme` (`default`/`colorblind`) per una palette sicura
+  per i daltonici, `show_title` per nascondere l'intestazione, `compact` per un
+  layout più denso e `relative_time` per l'ultimo aggiornamento in forma
+  relativa ("5 min fa").
+
+### Modificato
+
+- L'ultimo aggiornamento è mostrato in forma relativa per impostazione
+  predefinita (`relative_time` attivo); disattivandolo resta il formato
+  compatto `gg/mm hh:mm`.
+- Quando l'entità è `unavailable`/`unknown` la card mostra "Non disponibile"
+  invece di valori vuoti.
+
 ## [0.1.6] - 2026-10-16
 
 ### Aggiunto
