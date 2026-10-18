@@ -5,6 +5,23 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.3.0] - 2026-10-18
+
+### Aggiunto
+
+- **Card localizzata (IT/EN)**: le etichette dell'interfaccia seguono la lingua
+  di Home Assistant, con override tramite la nuova opzione `language`
+  (`auto`/`it`/`en`). Sono tradotti anche i nomi delle categorie e i testi
+  relativi ("Agg.", "Non disponibile", fasce orarie, ecc.).
+- **Nuova variante `bars`** per la card: una riga per ogni inquinante con barra
+  0-100, valore e categoria; ogni riga apre lo storico del sensore.
+- **Accessibilità**: gauge/barra/righe e giorni delle previsioni hanno
+  `role`/`aria-label`, i giorni sono navigabili da tastiera (frecce + Invio) e
+  compare un contorno `:focus-visible`.
+- **Tendenza** (`trend`) sugli attributi di `Riepilogo` e `Indice numerico`:
+  `su`/`giu`/`stabile` confrontando l'indice con l'aggiornamento precedente; la
+  card mostra una freccia accanto al valore.
+
 ## [0.2.0] - 2026-10-18
 
 ### Aggiunto

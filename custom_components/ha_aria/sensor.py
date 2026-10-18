@@ -33,6 +33,7 @@ from .const import (
 from .coordinator import AirCoordinator, current_period
 from .stats import day_stats as _day_stats
 from .stats import index_category as _index_category
+from .stats import trend as _trend_of
 from .stats import weighted_index as _weighted_index
 
 
@@ -242,6 +243,37 @@ def _weighted_index_for(coordinator: AirCoordinator) -> float | None:
     return _weighted_index(_current_index_values(coordinator))
 
 
+def _index_values_in(report, keys: list[str], period_name: str) -> dict[str, float | None]:
+    """Like :func:`_current_index_values` but for an arbitrary report."""
+    values: dict[str, float | None] = {}
+    for key in keys:
+        days = report.pollutants.get(key) if report else None
+        day = days[0] if days else None
+        if day is None:
+            values[key] = None
+            continue
+        period = day.periods.get(period_name)
+        values[key] = (
+            period.indicator if period is not None else _day_stats(day)["max_indice_pct"]
+        )
+    return values
+
+
+def _previous_weighted_index(coordinator: AirCoordinator) -> float | None:
+    """Weighted index of the previous refresh (``None`` on the first one)."""
+    previous = getattr(coordinator, "previous_data", None)
+    if previous is None:
+        return None
+    return _weighted_index(
+        _index_values_in(previous, _selected_keys(coordinator), current_period(dt_util.now()))
+    )
+
+
+def _trend(coordinator: AirCoordinator, current: float | None) -> str | None:
+    """Direction (``su``/``giu``/``stabile``) since the previous refresh."""
+    return _trend_of(current, _previous_weighted_index(coordinator))
+
+
 class AirIndexValueSensor(_AirBaseSensor):
     """Weighted overall index as a number (0-100, 100 = worst).
 
@@ -281,6 +313,7 @@ class AirIndexValueSensor(_AirBaseSensor):
             "indice": CATEGORIES.get(category or "", {}).get("index"),
             "colore": CATEGORIES.get(category or "", {}).get("color"),
             "periodo": current_period(dt_util.now()),
+            "trend": _trend(self.coordinator, value),
             "riepilogo": rows,
             "conteggio_per_categoria": counts,
             "pesi": POLLUTANT_WEIGHTS,
@@ -487,6 +520,7 @@ class AirSummarySensor(_AirBaseSensor):
             "indice_pct": index,
             "scala": "3BMeteo 0-100",
             "periodo": current_period(dt_util.now()),
+            "trend": _trend(self.coordinator, index),
             "riepilogo": rows,
             "inquinanti_piu_alti": top,
             "conteggio_per_categoria": counts,

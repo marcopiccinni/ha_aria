@@ -193,8 +193,9 @@ l'ora dell'ultimo aggiornamento.
 | `show_gauge_max` | `true` | Tacca e legenda del **massimo** della giornata |
 | `forecast_days` | tutti | Quante giornate mostrare nella striscia delle previsioni (oggi incluso, 1-5) |
 | `font_size` | `normal` | Dimensione del testo: `small`, `normal`, `large`, `xlarge` (non modifica titolo e ultimo aggiornamento) |
-| `variant` | `gauge` | Visualizzazione principale: `gauge` (arco) o `bar` (barra lineare 0-100) |
+| `variant` | `gauge` | Visualizzazione principale: `gauge` (arco), `bar` (barra lineare 0-100) o `bars` (una riga per inquinante) |
 | `color_scheme` | `default` | Palette dei colori: `default` o `colorblind` (sicura per i daltonici) |
+| `language` | `auto` | Lingua dell'interfaccia: `auto` (segue Home Assistant), `it` o `en` |
 | `show_title` | `true` | Mostra l'intestazione (titolo + ultimo aggiornamento) |
 | `compact` | `false` | Layout più denso (padding e spazi ridotti) |
 | `relative_time` | `true` | Ultimo aggiornamento in forma relativa ("5 min fa"); `false` per `gg/mm hh:mm` |
@@ -240,6 +241,12 @@ mostra l'**indice pesato 0-100** (vedi [Indice dell'aria](#indice-dellaria-riepi
 e, sotto, la sezione **"Inquinanti più alti"** con nome, valore e indice del
 sito. Selezionando un giorno nella striscia delle previsioni, sia l'indice sia
 l'elenco si aggiornano a quel giorno.
+
+La card mostra una **freccia di tendenza** accanto al valore (▲ peggiora,
+▼ migliora, ▬ stabile), ricavata dall'attributo `trend` di `Riepilogo` e
+`Indice numerico`. Con `variant: bars` la visualizzazione principale diventa un
+elenco: una riga per inquinante con barra, valore e categoria, utile per un
+colpo d'occhio su tutti gli inquinanti selezionati.
 
 ### Alternativa con le card built-in
 

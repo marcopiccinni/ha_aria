@@ -40,6 +40,23 @@ def index_category(value: float | None) -> str | None:
     return "Pessima"
 
 
+def trend(
+    current: float | None, previous: float | None, threshold: float = 1.0
+) -> str | None:
+    """Return ``su``/``giu``/``stabile`` comparing two index values.
+
+    ``threshold`` (in index points) filters out noise. Returns ``None`` when
+    either value is missing (e.g. the first refresh after a restart).
+    """
+    if current is None or previous is None:
+        return None
+    if current > previous + threshold:
+        return "su"
+    if current < previous - threshold:
+        return "giu"
+    return "stabile"
+
+
 def interp_pct(
     points: list[tuple[float, float]], x: float | None
 ) -> float | None:

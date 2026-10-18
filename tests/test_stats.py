@@ -62,6 +62,22 @@ def test_index_category_none() -> None:
     assert stats.index_category(None) is None
 
 
+def test_trend_direction() -> None:
+    assert stats.trend(60.0, 50.0) == "su"
+    assert stats.trend(40.0, 50.0) == "giu"
+    assert stats.trend(50.0, 50.0) == "stabile"
+
+
+def test_trend_threshold_filters_noise() -> None:
+    assert stats.trend(50.5, 50.0) == "stabile"
+    assert stats.trend(51.5, 50.0) == "su"
+
+
+def test_trend_missing_values() -> None:
+    assert stats.trend(None, 50.0) is None
+    assert stats.trend(50.0, None) is None
+
+
 def test_interp_pct_edge_cases() -> None:
     points = [(10.0, 20.0), (20.0, 60.0), (30.0, 90.0)]
     assert stats.interp_pct(points, None) is None

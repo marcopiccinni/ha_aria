@@ -53,6 +53,7 @@ class AirCoordinator(DataUpdateCoordinator[AirReport]):
             config_entry=entry,
         )
         self.entry = entry
+        self.previous_data: AirReport | None = None
 
     @property
     def pollutants(self) -> list[str]:
@@ -61,14 +62,17 @@ class AirCoordinator(DataUpdateCoordinator[AirReport]):
         return [key for key in selected if key in self.data.pollutants] if self.data else list(selected)
 
     async def _async_update_data(self) -> AirReport:
+        previous = self.data
         try:
-            return await self.client.async_get(self.canonical)
+            report = await self.client.async_get(self.canonical)
         except TimeoutError as err:
             raise UpdateFailed("Timeout fetching air-quality page") from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Error fetching air-quality page: {err}") from err
         except ValueError as err:
             raise UpdateFailed(f"Invalid air-quality page: {err}") from err
+        self.previous_data = previous
+        return report
 
     def current_day(self, key: str) -> AirDay | None:
         """Return today's forecast entry for ``key``.

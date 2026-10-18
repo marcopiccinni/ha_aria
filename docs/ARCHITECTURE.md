@@ -98,8 +98,13 @@ una volta in `async_setup`). Definisce l'elemento `ha-aria-card` e lo espone nel
 card picker. Le opzioni sono gestite da `setConfig` (con default robusti) e
 dall'editor `ha-aria-card-editor`; le azioni (`tap_action`, `hold_action`,
 `double_tap_action`) usano i selector `ui_action` e la stessa semantica delle
-card native. Due palette colori (`default`, `colorblind`) e due varianti
-(`gauge`, `bar`) sono definite nel file: la card è vanilla JS, senza build.
+card native. Due palette colori (`default`, `colorblind`) e tre varianti
+(`gauge`, `bar`, `bars`) sono definite nel file: la card è vanilla JS, senza
+build. L'interfaccia è localizzata IT/EN (`_t`/`_cat` da `hass.locale.language`,
+override con `language`) e accessibile (ruoli/`aria-label`, navigazione da
+tastiera dei giorni). La freccia di tendenza legge l'attributo `trend`
+(`su`/`giu`/`stabile`) calcolato dai sensori confrontando l'indice corrente con
+`coordinator.previous_data` (aggiornamento precedente, in memoria).
 
 ## Flusso
 
