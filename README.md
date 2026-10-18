@@ -29,6 +29,8 @@ Per ogni comune configurato:
 | `sensor.<localita>_no2` | NO2 |
 | `sensor.<localita>_indice` | Qualità complessiva: categoria peggiore tra gli inquinanti selezionati |
 | `sensor.<localita>_riepilogo` | Riepilogo: categoria peggiore + classifica degli inquinanti più alti |
+| `sensor.<localita>_indice_numerico` | **Indice numerico** 0-100 (per statistiche, storico e soglie) |
+| `sensor.<localita>_aqi` | **Indice AQI** US EPA 0-500 (`device_class: aqi`) |
 
 Gli id reali dipendono dal nome che assegni al dispositivo (es.
 `Qualità aria Roma`). Gli inquinanti non selezionati nelle opzioni non
@@ -92,6 +94,29 @@ Pesi `wᵢ` per pericolosità:
 
 Le fasce dell'indice riusano i nomi e i colori del sito: `< 20` Ottima,
 `20-40` Buona, `40-60` Accettabile, `60-80` Scadente, `≥ 80` Pessima.
+
+### Indice numerico
+
+`sensor.<località>_indice_numerico` è lo **stesso indice pesato 0-100** del
+Riepilogo ma come **numero**, con `state_class: measurement`: così funzionano le
+statistiche a lungo termine, i grafici di storico e le soglie numeriche nelle
+automazioni. La categoria testuale resta su `_indice` e `_riepilogo`.
+
+### Indice AQI (`aqi`)
+
+`sensor.<località>_aqi` è l'indice **US EPA AQI** (0-500, `device_class: aqi`)
+calcolato dalle concentrazioni del periodo corrente in µg/m³ tramite le tabelle
+di breakpoint EPA. L'AQI è il **massimo** dei sub-indici degli inquinanti; il
+sensore espone come attributi l'**inquinante dominante**, i **sub-indici** e le
+**concentrazioni** usate.
+
+Le bande AQI: `0-50` Buona, `51-100` Moderata, `101-150` Insoddisfacente per
+gruppi sensibili, `151-200` Insalubre, `201-300` Molto insalubre, `301-500`
+Pericolosa.
+
+> L'AQI è un'approssimazione: 3BMeteo pubblica misure di breve periodo, mentre
+> l'EPA definisce alcune specie (es. PM2.5) su medie a 24h/8h. Va inteso come
+> scala intuitiva 0-500, non come indice regolatorio.
 
 ## Installazione
 

@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-import itertools
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .client import AirDay
+from .aqi import compute_aqi
 from .const import (
     AIR_PATH,
     ATTRIBUTION,
@@ -22,13 +25,15 @@ from .const import (
     CONF_POLLUTANTS,
     DEFAULT_POLLUTANTS,
     DOMAIN,
-    INDEX_BANDS,
     INDEX_POWER,
     POLLUTANT_WEIGHTS,
     POLLUTANTS,
     UNIT,
 )
 from .coordinator import AirCoordinator, current_period
+from .stats import day_stats as _day_stats
+from .stats import index_category as _index_category
+from .stats import weighted_index as _weighted_index
 
 
 def _selected_keys(coordinator: AirCoordinator) -> list[str]:
@@ -53,6 +58,8 @@ async def async_setup_entry(
     ]
     entities.append(AirIndexSensor(coordinator))
     entities.append(AirSummarySensor(coordinator))
+    entities.append(AirIndexValueSensor(coordinator))
+    entities.append(AirAqiSensor(coordinator))
     async_add_entities(entities)
 
 
@@ -66,6 +73,8 @@ def _remove_orphan_entities(
     expected = {f"{canonical}_{key}" for key in keys}
     expected.add(f"{canonical}_index")
     expected.add(f"{canonical}_riepilogo")
+    expected.add(f"{canonical}_indice_pct")
+    expected.add(f"{canonical}_aqi")
     registry = er.async_get(hass)
     for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         if reg_entry.unique_id not in expected:
@@ -189,36 +198,170 @@ def _worst_category(coordinator: AirCoordinator) -> str | None:
     return worst
 
 
-def _weighted_index(values: dict[str, float | None]) -> float | None:
-    """Weighted generalised mean (power ``INDEX_POWER``) of the 0-100 indices.
-
-    ``values`` holds the 3BMeteo reliability index (0-100, 100 = worst) of every
-    selected pollutant. ``I = ( Σ w_i · v_i^p / Σ w_i )^(1/p)`` with the
-    health-relevance weights ``w_i``: with ``p > 1`` the worst pollutants
-    dominate more than a plain weighted average, while the result stays on the
-    same 0-100 scale (and category bands) used by the single pollutants.
-    """
-    numerator = 0.0
-    denominator = 0.0
-    for key, value in values.items():
-        if value is None:
+def _current_index_values(
+    coordinator: AirCoordinator,
+) -> dict[str, float | None]:
+    """Current-period 0-100 reliability index of every selected pollutant."""
+    period_name = current_period(dt_util.now())
+    values: dict[str, float | None] = {}
+    for key in _selected_keys(coordinator):
+        day = coordinator.current_day(key)
+        if day is None:
+            values[key] = None
             continue
-        weight = POLLUTANT_WEIGHTS.get(key, 1)
-        numerator += weight * (float(value) ** INDEX_POWER)
-        denominator += weight
-    if not denominator:
-        return None
-    return round((numerator / denominator) ** (1.0 / INDEX_POWER), 1)
+        period = day.periods.get(period_name)
+        if period is not None:
+            values[key] = period.indicator
+        else:
+            values[key] = _day_stats(day)["max_indice_pct"]
+    return values
 
 
-def _index_category(value: float | None) -> str | None:
-    """Map a 0-100 index value to a site category name."""
-    if value is None:
-        return None
-    for bound, name in INDEX_BANDS:
-        if value < bound:
-            return name
-    return "Pessima"
+def _current_concentrations(
+    coordinator: AirCoordinator,
+) -> dict[str, float | None]:
+    """Current-period concentration (µg/m³) of every selected pollutant.
+
+    Used as the input of the EPA AQI: the time-of-day value is preferred, with
+    the daily maximum as a fallback when the current period is missing.
+    """
+    period_name = current_period(dt_util.now())
+    values: dict[str, float | None] = {}
+    for key in _selected_keys(coordinator):
+        day = coordinator.current_day(key)
+        if day is None:
+            values[key] = None
+            continue
+        period = day.periods.get(period_name)
+        values[key] = period.value if period is not None else day.maximum
+    return values
+
+
+def _weighted_index_for(coordinator: AirCoordinator) -> float | None:
+    """The weighted 0-100 index of the current period for this location."""
+    return _weighted_index(_current_index_values(coordinator))
+
+
+class AirIndexValueSensor(_AirBaseSensor):
+    """Weighted overall index as a number (0-100, 100 = worst).
+
+    Exposed with ``state_class: measurement`` so Home Assistant keeps
+    long-term statistics: history graphs, statistics cards, and numeric
+    thresholds in automations. The category text lives on the summary
+    sensor, which keeps its original behaviour.
+    """
+
+    _attr_name = "Indice numerico"
+    _attr_icon = "mdi:gauge"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = None
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, coordinator: AirCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.canonical}_indice_pct"
+
+    @property
+    def native_value(self) -> float | None:
+        return _weighted_index_for(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        value = _weighted_index_for(self.coordinator)
+        category = _index_category(value)
+        rows = _current_index_rows(self.coordinator)
+        counts: dict[str, int] = {}
+        for row in rows:
+            name = row["categoria"] or "—"
+            counts[name] = counts.get(name, 0) + 1
+        return {
+            "localita": self._location,
+            "scala": "3BMeteo 0-100",
+            "categoria": category,
+            "indice": CATEGORIES.get(category or "", {}).get("index"),
+            "colore": CATEGORIES.get(category or "", {}).get("color"),
+            "periodo": current_period(dt_util.now()),
+            "riepilogo": rows,
+            "conteggio_per_categoria": counts,
+            "pesi": POLLUTANT_WEIGHTS,
+            "esponente": INDEX_POWER,
+        }
+
+
+def _current_index_rows(coordinator: AirCoordinator) -> list[dict[str, Any]]:
+    """Selected pollutants with their current 0-100 index, worst first."""
+    period_name = current_period(dt_util.now())
+    rows: list[dict[str, Any]] = []
+    for key in _selected_keys(coordinator):
+        day = coordinator.current_day(key)
+        if day is None:
+            continue
+        period = day.periods.get(period_name)
+        norm = period.indicator if period else _day_stats(day)["max_indice_pct"]
+        category = period.category if period else day.category
+        rows.append(
+            {
+                "chiave": key,
+                "nome": POLLUTANTS[key],
+                "valore": period.value if period else day.maximum,
+                "normalizzato": norm,
+                "categoria": category or _index_category(norm),
+                "colore": CATEGORIES.get(
+                    category or _index_category(norm) or "", {}
+                ).get("color"),
+            }
+        )
+    rows.sort(key=lambda row: -(row["normalizzato"] or 0))
+    return rows
+
+
+class AirAqiSensor(_AirBaseSensor):
+    """US EPA Air Quality Index (0-500) computed from the concentrations.
+
+    The AQI is an intuitive 0-500 scale derived from the site's µg/m³ values
+    via the EPA breakpoint table (see ``aqi.py``); the dominant pollutant and
+    the per-pollutant sub-indices are exposed as attributes.
+    """
+
+    _attr_name = "AQI"
+    _attr_icon = "mdi:weather-cloudy-alert"
+    _attr_device_class = SensorDeviceClass.AQI
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator: AirCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.canonical}_aqi"
+
+    @property
+    def native_value(self) -> int | None:
+        return compute_aqi(_current_concentrations(self.coordinator)).aqi
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        concentrations = _current_concentrations(self.coordinator)
+        result = compute_aqi(concentrations)
+        return {
+            "localita": self._location,
+            "scala": "US EPA AQI 0-500",
+            "categoria": result.category,
+            "colore": result.color,
+            "inquinante_dominante": POLLUTANTS.get(result.dominant or "", None),
+            "sub_indici": {
+                POLLUTANTS[key]: index
+                for key, index in result.sub_indices.items()
+            },
+            "concentrazioni": {
+                POLLUTANTS[key]: value
+                for key, value in concentrations.items()
+                if value is not None
+            },
+            "periodo": current_period(dt_util.now()),
+            "avvertimento": (
+                "Indice derivato da misure di breve periodo; il valore "
+                "ufficiale EPA si basa su medie a 24h/8h."
+            ),
+        }
 
 
 class AirSummarySensor(_AirBaseSensor):
@@ -240,50 +383,16 @@ class AirSummarySensor(_AirBaseSensor):
 
     def _current_values(self) -> dict[str, float | None]:
         """Current-period 0-100 reliability index of every selected pollutant."""
-        period_name = current_period(dt_util.now())
-        values: dict[str, float | None] = {}
-        for key in _selected_keys(self.coordinator):
-            day = self.coordinator.current_day(key)
-            if day is None:
-                values[key] = None
-                continue
-            period = day.periods.get(period_name)
-            if period is not None:
-                values[key] = period.indicator
-            else:
-                values[key] = _day_stats(day)["max_indice_pct"]
-        return values
+        return _current_index_values(self.coordinator)
 
     def _index(self) -> float | None:
         return _weighted_index(self._current_values())
 
     def _rows(self) -> list[dict[str, Any]]:
         """Every selected pollutant, ranked by its 0-100 index (worst first)."""
-        period_name = current_period(dt_util.now())
-        rows: list[dict[str, Any]] = []
-        for key in _selected_keys(self.coordinator):
-            day = self.coordinator.current_day(key)
-            if day is None:
-                continue
-            period = day.periods.get(period_name)
-            value = period.value if period else day.maximum
-            stats = _day_stats(day)
-            norm = period.indicator if period else stats["max_indice_pct"]
-            category = period.category if period else day.category
-            rows.append(
-                {
-                    "chiave": key,
-                    "nome": POLLUTANTS[key],
-                    "valore": value,
-                    "normalizzato": norm,
-                    "peso": POLLUTANT_WEIGHTS.get(key),
-                    "categoria": category or _index_category(norm),
-                    "colore": CATEGORIES.get(
-                        category or _index_category(norm) or "", {}
-                    ).get("color"),
-                }
-            )
-        rows.sort(key=lambda row: -(row["normalizzato"] or 0))
+        rows = _current_index_rows(self.coordinator)
+        for row in rows:
+            row["peso"] = POLLUTANT_WEIGHTS.get(row["chiave"])
         return rows
 
     def _serialize_days(self) -> list[dict[str, Any]]:
@@ -416,65 +525,6 @@ def _worst_by_day(coordinator: AirCoordinator) -> list[dict[str, Any]]:
                 worst = day.category
         result.append({"giorno": label, "categoria": worst})
     return result
-
-
-def _interp_pct(points: list[tuple[float, float]], x: float | None) -> float | None:
-    """Interpolate the reliability indicator for a raw value.
-
-    ``points`` are the (value, indicator%) pairs of the day's periods, sorted by
-    value. The site only publishes an indicator for the single periods, so the
-    daily mean needs interpolating between the closest period points.
-    """
-    if x is None or not points:
-        return None
-    if x <= points[0][0]:
-        return round(points[0][1], 2)
-    if x >= points[-1][0]:
-        return round(points[-1][1], 2)
-    for (x0, y0), (x1, y1) in itertools.pairwise(points):
-        if x0 <= x <= x1:
-            if x1 == x0:
-                return round(y0, 2)
-            return round(y0 + (y1 - y0) * (x - x0) / (x1 - x0), 2)
-    return round(points[-1][1], 2)
-
-
-def _day_stats(day: AirDay) -> dict[str, float | None]:
-    """Min / max / mean of a day with their position on the reliability bar.
-
-    The site publishes Max and Media per day but not Min: the minimum is taken
-    from the lowest of the four time-of-day periods, which also carries its own
-    indicator, so no interpolation is needed for min and max.
-    """
-    points = sorted(
-        (
-            (p.value, p.indicator)
-            for p in day.periods.values()
-            if p.value is not None
-        ),
-        key=lambda pair: pair[0],
-    )
-    min_v: float | None = None
-    min_pct: float | None = None
-    max_v: float | None = day.maximum
-    max_pct: float | None = None
-    if points:
-        min_v, min_pct = points[0]
-        if max_v is None:
-            max_v = points[-1][0]
-            max_pct = points[-1][1]
-        elif abs(max_v - points[-1][0]) < 1e-9:
-            max_pct = points[-1][1]
-        else:
-            max_pct = _interp_pct(points, max_v)
-    return {
-        "min": min_v,
-        "min_indice_pct": min_pct,
-        "max": max_v,
-        "max_indice_pct": max_pct,
-        "media": day.mean,
-        "media_indice_pct": _interp_pct(points, day.mean),
-    }
 
 
 def _serialize_days(coordinator: AirCoordinator, key: str) -> list[dict[str, Any]]:

@@ -5,6 +5,27 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.2.0] - 2026-10-18
+
+### Aggiunto
+
+- Nuovo sensore numerico **Indice numerico** (`<canonical>_indice_pct`), indice
+  pesato 0-100 con `state_class: measurement`: abilita statistiche a lungo
+  termine, grafici di storico e soglie numeriche nelle automazioni. L'`Indice`
+  (categoria) e il `Riepilogo` restano invariati.
+- Nuovo sensore **Indice AQI** (`<canonical>_aqi`) con `device_class: aqi`:
+  indice **US EPA 0-500** calcolato dalle concentrazioni in µg/m³ tramite le
+  tabelle di breakpoint EPA. Espone come attributi l'inquinante dominante, i
+  sub-indici e le concentrazioni usate. Nuovo modulo `aqi.py`.
+- Test suite `pytest` (parser, statistiche dell'indice e AQI) con HTML
+  sintetico; nuovo job CI **Tests** (lint + `pytest`).
+
+### Modificato
+
+- Refactoring interno: la logica pura è stata spostata in moduli senza
+  dipendenze da Home Assistant (`models.py`, `parser.py`, `stats.py`, `aqi.py`)
+  così da poter essere testata in isolamento.
+
 ## [0.1.7] - 2026-10-17
 
 ### Aggiunto

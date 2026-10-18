@@ -36,14 +36,18 @@ Ogni pannello contiene fino a **5 giorni** (`li.fc-accordion-item`):
 L'`indice_pct` (0-100) è la posizione nella barra a **5 segmenti uguali**, che
 corrispondono 1:1 alle categorie (Ottima…Pessima).
 
-Il parser è in `client.py::parse_air` e usa solo `re` + `html` (stdlib).
+Il parser è in `parser.py::parse_air` e usa solo `re` + `html` (stdlib). La
+logica pura è separata in moduli **senza import di Home Assistant** così da
+essere testabile in isolamento: `models.py` (dataclass), `parser.py` (HTML),
+`stats.py` (indice/interpolazione), `aqi.py` (AQI EPA). `client.py` contiene solo
+fetch, ricerca località e cache.
 
 ## Invarianti
 
 - **Un'inquinante = un sensore.** Lo stato è numerico (µg/m³) per permettere i
   gauge; la categoria è un attributo.
-- `unique_id` entità = `<canonical>_<pollutant>` (o `<canonical>_index` /
-  `<canonical>_riepilogo`).
+- `unique_id` entità = `<canonical>_<pollutant>`, più `<canonical>_index`,
+  `<canonical>_riepilogo`, `<canonical>_indice_pct` e `<canonical>_aqi`.
 - Il primo giorno parsato è sempre **oggi** (il sito lo elenca per primo):
   `AirCoordinator.current_day` restituisce `days[0]`.
 - Gli inquinanti non selezionati non vengono creati; cambiare le opzioni
@@ -71,6 +75,21 @@ I singoli inquinanti restano sulla scala 0-100 di 3BMeteo (`indice_pct`),
 usata anche per posizionare tacche Min/Media/Max e il pallino del valore
 corrente nella card.
 
+## Indice numerico e AQI
+
+Due sensori aggiuntivi espongono indici numerici (utili per statistiche,
+storico e automazioni):
+
+- `<canonical>_indice_pct` (`AirIndexValueSensor`): lo **stesso** indice pesato
+  0-100 del Riepilogo, ma come numero con `state_class: measurement`. Il calcolo
+  è in `stats.py` (`weighted_index`, `index_category`).
+- `<canonical>_aqi` (`AirAqiSensor`): indice **US EPA** 0-500 con
+  `device_class: aqi`. `aqi.py` converte le concentrazioni µg/m³ nel sistema di
+  breakpoint EPA (µg/m³ per i particolati, ppb/ppm per i gas tramite il volume
+  molare 24,45 L/mol), calcola il sub-indice di ogni inquinante e restituisce il
+  **massimo** come AQI, con l'inquinante dominante. I test in `tests/test_aqi.py`
+  fissano i valori di confine.
+
 ## Card
 
 `www/ha-aria-card.js` è servita dall'integrazione e caricata con
@@ -87,6 +106,6 @@ card native. Due palette colori (`default`, `colorblind`) e due varianti
 ```
 config flow (search_localita) -> entry(canonical)
    -> AirCoordinator (fetch /aria/<canonical>, parse, cache TTL)
-   -> sensor.py: 1 sensore/inquinante + indice + riepilogo
+   -> sensor.py: 1 sensore/inquinante + indice + riepilogo + indice_pct + aqi
    -> card JS legge attributi (categoria, indice, previsioni, periodi)
 ```
