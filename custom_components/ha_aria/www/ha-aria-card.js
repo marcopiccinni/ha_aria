@@ -98,7 +98,7 @@ const I18N = {
   },
 };
 
-const CARD_VERSION = "0.3.0";
+const CARD_VERSION = "0.4.0";
 
 class HaAriaCard extends HTMLElement {
   constructor() {

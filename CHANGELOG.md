@@ -5,6 +5,19 @@ Tutte le modifiche degne di nota di questo progetto.
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e il
 progetto usa il [Versionamento Semantico](https://semver.org/lang/it/).
 
+## [0.4.0] - 2026-10-18
+
+### Aggiunto
+
+- **Screenshot della card** (varianti `gauge` e `bars`) in
+  `docs/images/`, mostrati nel README.
+
+### Documentazione
+
+- Preparazione all'inserimento in **HACS default**: metadati del repository
+  (descrizione, topic `hacs`/`home-assistant`), `hacs.json` e asset brand
+  (`custom_components/ha_aria/brand/`) verificati.
+
 ## [0.3.0] - 2026-10-18
 
 ### Aggiunto

@@ -148,6 +148,10 @@ L'integrazione include e registra automaticamente la card `ha-aria-card`
 dall'**editor visuale** (entità principale, titolo, inquinanti aggiuntivi,
 fasce orarie, previsioni e tacche Min/Media/Max del gauge).
 
+| Gauge (arco) | Variante `bars` |
+| --- | --- |
+| ![Card qualità dell'aria, variante gauge](docs/images/card-gauge.png) | ![Card qualità dell'aria, variante bars](docs/images/card-bars.png) |
+
 Esempio minimo (un inquinante o l'indice):
 
 ```yaml
